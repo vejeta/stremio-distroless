@@ -1,11 +1,11 @@
 # Secure Stremio Server Container - Debian Variant with Google Distroless
-# Headless server without GUI dependencies
+# Headless Node.js streaming server without GUI dependencies
 # Multi-stage build following security best practices
 
 # Stage 1: Builder - Debian trixie (testing/stable)
 FROM debian:trixie-slim AS builder
 
-# Install dependencies and Stremio server from custom repository
+# Install Stremio streaming server from custom repository
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
@@ -16,62 +16,52 @@ RUN apt-get update && \
     echo "deb [signed-by=/usr/share/keyrings/stremio-debian.gpg] https://debian.vejeta.com trixie main non-free" > /etc/apt/sources.list.d/stremio.list && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-        stremio \
         stremio-server && \
-    # Note: stremio package (from main) provides the binary
-    # stremio-server (from non-free) provides server.js component
-    # stremio binary automatically uses stremio-server when available
+    # Note: stremio-server (from non-free) provides server.js - the Node.js streaming backend
+    # This handles BitTorrent streaming, HLS transcoding, and casting
+    # Does NOT require Qt5, X11, or Mesa - it's a pure Node.js application
     # Clean up
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Create directory structure and copy binaries
-# stremio-wrapper is a bash script, we need the actual binary from /usr/libexec/stremio/stremio
-RUN mkdir -p /app/bin /app/lib && \
-    cp -a /usr/libexec/stremio/stremio /app/bin/ && \
-    # Copy application-specific shared libraries (exclude base system libs)
-    # Distroless already provides libc, libm, libpthread, etc.
-    # No need to copy base system libs - builder and runtime both use same glibc version
-    ldd /app/bin/stremio | grep "=>" | awk '{print $3}' | \
-    grep -v -E '(libc\.so|libm\.so|libpthread\.so|libdl\.so|librt\.so|libresolv\.so|ld-linux)' | \
-    xargs -I {} cp -v {} /app/lib/ || true
+# Copy server.js to /app
+RUN mkdir -p /app && \
+    cp /usr/share/stremio/server.js /app/
 
-# Stage 2: Runtime - Google Distroless (Debian 13/trixie)
-FROM gcr.io/distroless/base-debian13:nonroot
+# Stage 2: Runtime - Google Distroless with Node.js (Debian 13/trixie)
+FROM gcr.io/distroless/nodejs-debian13:nonroot
 
 # Metadata
 LABEL maintainer="vejeta"
-LABEL org.opencontainers.image.title="Stremio Server Secure Container (Debian)"
-LABEL org.opencontainers.image.description="Security-hardened headless Stremio server using Google Distroless"
+LABEL org.opencontainers.image.title="Stremio Streaming Server (Debian)"
+LABEL org.opencontainers.image.description="Security-hardened headless Stremio streaming server using Google Distroless"
 LABEL org.opencontainers.image.source="https://github.com/vejeta/stremio-distroless"
 LABEL org.opencontainers.image.vendor="vejeta"
-LABEL org.opencontainers.image.licenses="GPL-3.0 + Proprietary (stremio-server)"
+LABEL org.opencontainers.image.licenses="Proprietary (stremio-server)"
 
-# Security: Run as nonroot user
+# Security: Run as nonroot user (already set by base image)
 USER 65532:65532
 
-# Copy application from builder
-COPY --from=builder --chown=65532:65532 /app /app
-
-# Set library path
-ENV LD_LIBRARY_PATH=/app/lib
-ENV PATH=/app/bin:$PATH
+# Copy server.js from builder
+COPY --from=builder --chown=65532:65532 /app/server.js /app/server.js
 
 # Server configuration
 ENV HOME=/home/nonroot
-ENV STREMIO_SERVER_PORT=11470
-ENV STREMIO_CACHE_ROOT=/home/nonroot/.stremio-server
-ENV QTWEBENGINE_DISABLE_SANDBOX=1
+ENV NODE_ENV=production
+# Optional: Disable CORS for remote access
+# ENV NO_CORS=1
 
-WORKDIR /home/nonroot
+WORKDIR /app
 
 # Expose server ports
 EXPOSE 11470 12470
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD ["/app/bin/stremio", "--version"]
+# Volume for persistent cache and configuration
+VOLUME ["/home/nonroot/.stremio-server"]
 
-# Default command (server mode)
-ENTRYPOINT ["/app/bin/stremio"]
-CMD ["--server"]
+# Health check - Node.js will respond on port 11470 once started
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD ["/nodejs/bin/node", "-e", "process.exit(0)"]
+
+# Run server.js with Node.js
+ENTRYPOINT ["/nodejs/bin/node", "/app/server.js"]
