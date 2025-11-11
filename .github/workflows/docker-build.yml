@@ -1,20 +1,11 @@
-name: Build and Test Docker Images
+name: Build and Test Docker Images (DISABLED - use build-and-scan.yml instead)
 
-# NOTE: Publishing to ghcr.io is DISABLED until testing is complete
-# To enable publishing, change 'push: false' to 'push: ${{ github.event_name != 'pull_request' }}'
+# This workflow has been superseded by build-and-scan.yml which supports
+# both Debian and Wolfi variants with comprehensive security scanning.
+# This workflow is disabled to prevent conflicts.
 
 on:
-  push:
-    branches:
-      - main
-      - develop
-      - 'claude/**'  # Allow builds on Claude branches for testing
-    tags:
-      - 'v*'
-  pull_request:
-    branches:
-      - main
-  workflow_dispatch:  # Allow manual triggering from GitHub UI
+  workflow_dispatch:  # Only allow manual triggering, not automatic
 
 env:
   REGISTRY: ghcr.io
