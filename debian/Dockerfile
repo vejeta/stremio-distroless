@@ -2,8 +2,8 @@
 # Multi-stage build following security best practices
 # Packages from: https://debian.vejeta.com
 
-# Stage 1: Builder - Debian bookworm (stable) with build tools
-FROM debian:bookworm-slim AS builder
+# Stage 1: Builder - Debian trixie (testing/stable) with build tools
+FROM debian:trixie-slim AS builder
 
 # Install dependencies and Stremio from custom repository
 RUN apt-get update && \
@@ -13,12 +13,12 @@ RUN apt-get update && \
         wget && \
     # Add custom Debian repository with GPG key verification
     wget -qO - https://debian.vejeta.com/key.gpg | gpg --dearmor -o /usr/share/keyrings/stremio-debian.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/stremio-debian.gpg] https://debian.vejeta.com bookworm main non-free" > /etc/apt/sources.list.d/stremio.list && \
+    echo "deb [signed-by=/usr/share/keyrings/stremio-debian.gpg] https://debian.vejeta.com trixie main non-free" > /etc/apt/sources.list.d/stremio.list && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
         stremio && \
     # Note: stremio package declares all required Qt5, multimedia, and X11 dependencies
-    # apt automatically resolves them
+    # apt automatically resolves them (including t64-suffixed packages for trixie)
     # Clean up to reduce layer size
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -32,7 +32,7 @@ RUN mkdir -p /app/bin /app/lib /app/share
 RUN cp -a /usr/libexec/stremio/stremio /app/bin/ && \
     # Copy application-specific shared libraries (exclude base system libs)
     # Distroless already provides libc, libm, libpthread, libdl, etc.
-    # Copying them causes glibc version conflicts (trixie builder vs bookworm runtime)
+    # No need to copy base system libs - builder and runtime both use same glibc version
     ldd /app/bin/stremio | grep "=>" | awk '{print $3}' | \
     grep -v -E '(libc\.so|libm\.so|libpthread\.so|libdl\.so|librt\.so|libresolv\.so|ld-linux)' | \
     xargs -I {} cp -v {} /app/lib/ || true && \
@@ -42,8 +42,8 @@ RUN cp -a /usr/libexec/stremio/stremio /app/bin/ && \
     mkdir -p /app/lib/dri && \
     cp -a /usr/lib/x86_64-linux-gnu/dri/*.so /app/lib/dri/ || true
 
-# Stage 2: Runtime - Google Distroless with glibc
-FROM gcr.io/distroless/base-debian12:nonroot
+# Stage 2: Runtime - Google Distroless with glibc (Debian 13/trixie)
+FROM gcr.io/distroless/base-debian13:nonroot
 
 # Metadata
 LABEL maintainer="vejeta"
