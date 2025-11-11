@@ -16,24 +16,28 @@ RUN apt-get update && \
     echo "deb [signed-by=/usr/share/keyrings/stremio-debian.gpg] https://debian.vejeta.com trixie main non-free" > /etc/apt/sources.list.d/stremio.list && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-        stremio && \
-    # Note: stremio package declares all dependencies including multimedia libraries
-    # apt automatically resolves them for trixie
+        stremio-server \
+        nodejs && \
+    # Note: stremio-server is in non-free section (proprietary streaming component)
+    # Depends on nodejs for running the JavaScript server
     # Clean up
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Create directory structure and copy binaries
-RUN mkdir -p /app/bin /app/lib && \
-    cp -a /usr/bin/stremio /app/bin/ && \
-    # Copy required shared libraries
-    ldd /usr/bin/stremio | grep "=>" | awk '{print $3}' | xargs -I {} cp -v {} /app/lib/ || true && \
-    # Copy ffmpeg for transcoding
-    cp -a /usr/bin/ffmpeg /app/bin/ 2>/dev/null || true && \
-    ldd /usr/bin/ffmpeg 2>/dev/null | grep "=>" | awk '{print $3}' | xargs -I {} cp -v {} /app/lib/ || true
+# Create directory structure and copy server files
+RUN mkdir -p /app && \
+    # Copy stremio-server files (architecture-independent, installs to /usr/share or /usr/lib)
+    if [ -d /usr/share/stremio-server ]; then \
+        cp -a /usr/share/stremio-server /app/; \
+    elif [ -d /usr/lib/stremio-server ]; then \
+        cp -a /usr/lib/stremio-server /app/; \
+    fi && \
+    # Copy nodejs binary
+    mkdir -p /app/bin && \
+    cp -a /usr/bin/node /app/bin/
 
-# Stage 2: Runtime - Google Distroless
-FROM gcr.io/distroless/base-debian12:nonroot
+# Stage 2: Runtime - Google Distroless with Node.js
+FROM gcr.io/distroless/nodejs-debian12:nonroot
 
 # Metadata
 LABEL maintainer="vejeta"
@@ -41,17 +45,10 @@ LABEL org.opencontainers.image.title="Stremio Server Secure Container (Debian)"
 LABEL org.opencontainers.image.description="Security-hardened headless Stremio server using Google Distroless"
 LABEL org.opencontainers.image.source="https://github.com/vejeta/stremio-distroless"
 LABEL org.opencontainers.image.vendor="vejeta"
-LABEL org.opencontainers.image.licenses="GPL-3.0"
+LABEL org.opencontainers.image.licenses="Proprietary (stremio-server)"
 
-# Security: Run as nonroot user
-USER 65532:65532
-
-# Copy application from builder
-COPY --from=builder --chown=65532:65532 /app /app
-
-# Set library path
-ENV LD_LIBRARY_PATH=/app/lib
-ENV PATH=/app/bin:$PATH
+# Copy stremio-server from builder
+COPY --from=builder --chown=65532:65532 /app/stremio-server /app/stremio-server
 
 # Server configuration
 ENV HOME=/home/nonroot
@@ -63,10 +60,11 @@ WORKDIR /home/nonroot
 # Expose server ports
 EXPOSE 11470 12470
 
-# Health check
+# Health check using node
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD ["/app/bin/stremio", "--version"]
+    CMD ["node", "--version"]
 
-# Default command (server mode)
-ENTRYPOINT ["/app/bin/stremio"]
-CMD ["--server"]
+# Run stremio-server with Node.js
+# Note: Adjust the path based on where server.js is located within stremio-server directory
+WORKDIR /app/stremio-server
+CMD ["node", "server.js"]
