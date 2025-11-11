@@ -11,9 +11,11 @@ on:
       - 'claude/**'
     tags:
       - 'v*'
-  pull_request:
-    branches:
-      - main
+  # pull_request trigger disabled during development to avoid duplicate builds
+  # Re-enable for production PR validation
+  # pull_request:
+  #   branches:
+  #     - main
   workflow_dispatch:
   schedule:
     # Weekly security scans even without code changes
