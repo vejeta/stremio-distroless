@@ -27,7 +27,12 @@ RUN apt-get update && \
 RUN mkdir -p /app/bin /app/lib /app/share
 
 # Copy Stremio binary and required libraries
-RUN cp -a /usr/bin/stremio /app/bin/ && \
+RUN set -x && \
+    # Debug: Check what was installed
+    ls -la /usr/bin/stremio* || true && \
+    dpkg -L stremio | grep bin || true && \
+    # Copy stremio binary
+    cp -a /usr/bin/stremio /app/bin/ && \
     # Copy all required shared libraries (will be filtered in next stage)
     ldd /usr/bin/stremio | grep "=>" | awk '{print $3}' | xargs -I {} cp -v {} /app/lib/ || true && \
     # Copy Qt plugins
