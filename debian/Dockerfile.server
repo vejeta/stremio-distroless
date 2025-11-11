@@ -2,8 +2,8 @@
 # Headless server without GUI dependencies
 # Multi-stage build following security best practices
 
-# Stage 1: Builder - Debian trixie (stable)
-FROM debian:trixie-slim AS builder
+# Stage 1: Builder - Debian bookworm (stable)
+FROM debian:bookworm-slim AS builder
 
 # Install dependencies and Stremio server from custom repository
 RUN apt-get update && \
@@ -13,7 +13,7 @@ RUN apt-get update && \
         wget && \
     # Add custom Debian repository with GPG key verification
     wget -qO - https://debian.vejeta.com/key.gpg | gpg --dearmor -o /usr/share/keyrings/stremio-debian.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/stremio-debian.gpg] https://debian.vejeta.com trixie main non-free" > /etc/apt/sources.list.d/stremio.list && \
+    echo "deb [signed-by=/usr/share/keyrings/stremio-debian.gpg] https://debian.vejeta.com bookworm main non-free" > /etc/apt/sources.list.d/stremio.list && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
         stremio \

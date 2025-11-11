@@ -136,7 +136,7 @@ jobs:
 
       - name: Run Trivy vulnerability scanner
         id: trivy
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.28.0
         continue-on-error: true
         with:
           image-ref: ${{ env.IMAGE_TAG }}
@@ -145,6 +145,7 @@ jobs:
           severity: 'CRITICAL,HIGH,MEDIUM'
           scanners: 'vuln,secret,config'
           timeout: '15m'
+          version: 'v0.67.2'
 
       - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
@@ -155,13 +156,14 @@ jobs:
 
       - name: Generate Trivy JSON report
         id: trivy-json
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.28.0
         continue-on-error: true
         with:
           image-ref: ${{ env.IMAGE_TAG }}
           format: 'json'
           output: 'trivy-results-${{ matrix.ecosystem }}-${{ matrix.variant }}.json'
           severity: 'CRITICAL,HIGH,MEDIUM,LOW'
+          version: 'v0.67.2'
 
       - name: Upload Trivy JSON report
         uses: actions/upload-artifact@v4

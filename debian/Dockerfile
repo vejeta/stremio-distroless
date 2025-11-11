@@ -2,8 +2,8 @@
 # Multi-stage build following security best practices
 # Packages from: https://debian.vejeta.com
 
-# Stage 1: Builder - Debian trixie (stable) with build tools
-FROM debian:trixie-slim AS builder
+# Stage 1: Builder - Debian bookworm (stable) with build tools
+FROM debian:bookworm-slim AS builder
 
 # Install dependencies and Stremio from custom repository
 RUN apt-get update && \
@@ -13,12 +13,12 @@ RUN apt-get update && \
         wget && \
     # Add custom Debian repository with GPG key verification
     wget -qO - https://debian.vejeta.com/key.gpg | gpg --dearmor -o /usr/share/keyrings/stremio-debian.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/stremio-debian.gpg] https://debian.vejeta.com trixie main non-free" > /etc/apt/sources.list.d/stremio.list && \
+    echo "deb [signed-by=/usr/share/keyrings/stremio-debian.gpg] https://debian.vejeta.com bookworm main non-free" > /etc/apt/sources.list.d/stremio.list && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
         stremio && \
     # Note: stremio package declares all required Qt5, multimedia, and X11 dependencies
-    # apt automatically resolves them (including t64-suffixed packages for trixie)
+    # apt automatically resolves them
     # Clean up to reduce layer size
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
