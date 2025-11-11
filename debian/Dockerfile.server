@@ -5,21 +5,15 @@
 # Stage 1: Builder - Debian trixie (stable)
 FROM debian:trixie-slim AS builder
 
-# Install dependencies and Stremio server from custom repository
+# Install dependencies and Stremio
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
-        gnupg \
-        wget && \
-    # Add custom Debian repository
-    echo "deb [trusted=yes] https://debian.vejeta.com trixie main" > /etc/apt/sources.list.d/vejeta.list && \
-    # Note: In production, add GPG key verification:
-    # wget -qO- https://debian.vejeta.com/public.key | gpg --dearmor > /etc/apt/trusted.gpg.d/vejeta.gpg && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends --allow-unauthenticated \
-        stremio-server \
-        # Node.js runtime (if needed by stremio-server)
+        wget \
+        curl \
+        # Node.js runtime (for stremio-server functionality)
         nodejs \
+        npm \
         # FFmpeg for transcoding
         ffmpeg \
         libavcodec59 \
@@ -30,16 +24,23 @@ RUN apt-get update && \
         libc6 \
         libgcc-s1 \
         libstdc++6 && \
+    # Download and install Stremio (includes server functionality)
+    wget https://dl.strem.io/linux/v4.4.168/stremio_4.4.168-1_amd64.deb -O /tmp/stremio.deb && \
+    apt-get install -y /tmp/stremio.deb && \
+    # Alternatively install stremio-server from npm if available
+    # npm install -g stremio-server || true && \
     # Clean up
+    rm /tmp/stremio.deb && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Create directory structure and copy binaries
 RUN mkdir -p /app/bin /app/lib && \
-    cp -a /usr/bin/stremio-server /app/bin/ 2>/dev/null || cp -a /usr/local/bin/stremio-server /app/bin/ && \
+    # Copy stremio binary (can be used as server)
+    cp -a /usr/bin/stremio /app/bin/stremio-server 2>/dev/null || cp -a /opt/stremio/stremio /app/bin/stremio-server && \
     # Copy required shared libraries
     ldd /app/bin/stremio-server | grep "=>" | awk '{print $3}' | xargs -I {} cp -v {} /app/lib/ || true && \
-    # Copy ffmpeg if stremio-server depends on it
+    # Copy ffmpeg for transcoding
     cp -a /usr/bin/ffmpeg /app/bin/ 2>/dev/null || true && \
     ldd /usr/bin/ffmpeg 2>/dev/null | grep "=>" | awk '{print $3}' | xargs -I {} cp -v {} /app/lib/ || true
 

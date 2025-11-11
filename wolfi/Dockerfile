@@ -3,32 +3,34 @@
 # GPLv3 License - https://github.com/vejeta/stremio-distroless
 
 # ============================================================================
-# Stage 1: Builder - Contains tools needed for setup and configuration
+# Stage 1: Debian builder to get Stremio package
+# ============================================================================
+FROM debian:trixie-slim AS deb-extractor
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends wget ca-certificates && \
+    wget https://dl.strem.io/linux/v4.4.168/stremio_4.4.168-1_amd64.deb -O /tmp/stremio.deb && \
+    dpkg-deb -x /tmp/stremio.deb /extracted && \
+    rm /tmp/stremio.deb
+
+# Stage 2: Wolfi builder for additional dependencies
 # ============================================================================
 FROM cgr.dev/chainguard/wolfi-base:latest AS builder
 
-# Add custom Wolfi APK repository from SourceForge
-# This repository contains Stremio and multimedia dependencies
-RUN echo "https://sourceforge.net/projects/wolfi/files/x86_64/" >> /etc/apk/repositories
-
-# Install build dependencies and Stremio with multimedia support
-# Using --no-cache to avoid storing package cache in the image
+# Install multimedia dependencies available in Wolfi
 RUN apk update && apk add --no-cache \
-    stremio \
-    libvpx \
-    libass \
-    libbluray \
-    qt5-qtbase \
-    qt5-qtdeclarative \
-    qt5-qtquickcontrols \
-    qt5-qtwebchannel \
-    libxcb \
-    vulkan-loader \
     ca-certificates \
+    glibc \
+    libgcc \
+    libstdc++ \
     && rm -rf /var/cache/apk/*
 
+# Copy Stremio from Debian extractor
+COPY --from=deb-extractor /extracted/opt/stremio /opt/stremio
+COPY --from=deb-extractor /extracted/usr /usr
+
 # ============================================================================
-# Stage 2: Runtime - Distroless minimal image for production
+# Stage 3: Runtime - Distroless minimal image for production
 # ============================================================================
 FROM cgr.dev/chainguard/glibc-dynamic:latest
 
@@ -43,10 +45,10 @@ LABEL org.opencontainers.image.documentation="https://github.com/vejeta/stremio-
 # Copy Stremio and dependencies from builder
 # Note: Chainguard distroless images already run as nonroot (65532:65532)
 # and don't support USER root operations
-COPY --from=builder --chown=65532:65532 /usr/bin/stremio /app/
+COPY --from=builder --chown=65532:65532 /opt/stremio/stremio /app/stremio
+COPY --from=builder /opt/stremio /app/stremio-data
 COPY --from=builder /usr/lib /usr/lib
 COPY --from=builder /usr/share /usr/share
-COPY --from=builder /etc/ssl /etc/ssl
 
 # Environment variables for security
 ENV HOME=/home/nonroot

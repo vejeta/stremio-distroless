@@ -3,23 +3,34 @@
 # GPLv3 License - https://github.com/vejeta/stremio-distroless
 
 # ============================================================================
-# Stage 1: Builder
+# Stage 1: Debian builder to get Stremio package
+# ============================================================================
+FROM debian:trixie-slim AS deb-extractor
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends wget ca-certificates && \
+    wget https://dl.strem.io/linux/v4.4.168/stremio_4.4.168-1_amd64.deb -O /tmp/stremio.deb && \
+    dpkg-deb -x /tmp/stremio.deb /extracted && \
+    rm /tmp/stremio.deb
+
+# Stage 2: Wolfi builder
 # ============================================================================
 FROM cgr.dev/chainguard/wolfi-base:latest AS builder
 
-# Add custom Wolfi APK repository
-RUN echo "https://sourceforge.net/projects/wolfi/files/x86_64/" >> /etc/apk/repositories
-
-# Install minimal dependencies for server-only mode
+# Install minimal dependencies
 RUN apk update && apk add --no-cache \
-    stremio-server \
-    nodejs \
-    ffmpeg \
     ca-certificates \
+    glibc \
+    libgcc \
+    libstdc++ \
     && rm -rf /var/cache/apk/*
 
+# Copy Stremio from Debian extractor
+COPY --from=deb-extractor /extracted/opt/stremio /opt/stremio
+COPY --from=deb-extractor /extracted/usr /usr
+
 # ============================================================================
-# Stage 2: Distroless Runtime
+# Stage 3: Distroless Runtime
 # ============================================================================
 FROM cgr.dev/chainguard/glibc-dynamic:latest
 
@@ -32,11 +43,10 @@ LABEL org.opencontainers.image.source="https://github.com/vejeta/stremio-distrol
 # Copy binaries from builder
 # Note: Chainguard distroless images already run as nonroot (65532:65532)
 # and don't support USER root operations
-COPY --from=builder --chown=65532:65532 /usr/bin/stremio-server /app/
-COPY --from=builder /usr/bin/node /usr/bin/
-COPY --from=builder /usr/bin/ffmpeg /usr/bin/
+COPY --from=builder --chown=65532:65532 /opt/stremio/stremio /app/stremio-server
+COPY --from=builder /opt/stremio /app/stremio-data
 COPY --from=builder /usr/lib /usr/lib
-COPY --from=builder /etc/ssl /etc/ssl
+COPY --from=builder /usr/share /usr/share
 
 ENV HOME=/home/nonroot
 ENV USER=nonroot
@@ -47,7 +57,7 @@ EXPOSE 11470
 EXPOSE 12470
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD ["/usr/bin/node", "--version"]
+    CMD ["/app/stremio-server", "--version"]
 
 WORKDIR /home/nonroot
 

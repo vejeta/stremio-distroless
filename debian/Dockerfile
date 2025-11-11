@@ -5,19 +5,12 @@
 # Stage 1: Builder - Debian trixie (stable) with build tools
 FROM debian:trixie-slim AS builder
 
-# Install dependencies and Stremio from custom repository
+# Install dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
-        gnupg \
-        wget && \
-    # Add custom Debian repository
-    echo "deb [trusted=yes] https://debian.vejeta.com trixie main" > /etc/apt/sources.list.d/vejeta.list && \
-    # Note: In production, add GPG key verification:
-    # wget -qO- https://debian.vejeta.com/public.key | gpg --dearmor > /etc/apt/trusted.gpg.d/vejeta.gpg && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends --allow-unauthenticated \
-        stremio \
+        wget \
+        curl \
         # Graphics and video acceleration
         libgl1-mesa-dri \
         libgl1-mesa-glx \
@@ -63,7 +56,11 @@ RUN apt-get update && \
         # Fonts
         fonts-liberation \
         fonts-dejavu-core && \
+    # Download and install Stremio from official source
+    wget https://dl.strem.io/linux/v4.4.168/stremio_4.4.168-1_amd64.deb -O /tmp/stremio.deb && \
+    apt-get install -y /tmp/stremio.deb && \
     # Clean up to reduce layer size
+    rm /tmp/stremio.deb && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
