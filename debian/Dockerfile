@@ -27,10 +27,11 @@ RUN apt-get update && \
 RUN mkdir -p /app/bin /app/lib /app/share
 
 # Copy Stremio binary and required libraries
+# Use -L to dereference symlinks (stremio may be a symlink to stremio-wrapper)
 RUN if [ -f /usr/bin/stremio ]; then \
-        cp -a /usr/bin/stremio /app/bin/; \
+        cp -L /usr/bin/stremio /app/bin/; \
     elif [ -f /usr/games/stremio ]; then \
-        cp -a /usr/games/stremio /app/bin/; \
+        cp -L /usr/games/stremio /app/bin/; \
     else \
         echo "ERROR: stremio binary not found in /usr/bin or /usr/games"; \
         exit 1; \
