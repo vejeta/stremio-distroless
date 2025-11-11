@@ -18,6 +18,11 @@ RUN apk update && apk add --no-cache \
     ca-certificates \
     && rm -rf /var/cache/apk/*
 
+# Create directory structure in builder stage
+# (cannot create directories in distroless runtime)
+RUN mkdir -p /app /home/nonroot/.stremio-server && \
+    chown -R 65532:65532 /app /home/nonroot
+
 # ============================================================================
 # Stage 2: Distroless Runtime
 # ============================================================================
@@ -29,13 +34,10 @@ LABEL org.opencontainers.image.vendor="vejeta"
 LABEL org.opencontainers.image.licenses="GPL-3.0"
 LABEL org.opencontainers.image.source="https://github.com/vejeta/stremio-distroless"
 
-# Create nonroot user and directories
-USER root
-RUN mkdir -p /app /home/nonroot/.stremio-server /tmp && \
-    chown -R 65532:65532 /app /home/nonroot /tmp
-
-# Copy binaries from builder
-COPY --from=builder /usr/bin/stremio-server /app/
+# Copy directory structure and binaries from builder
+# Distroless images cannot run shell commands
+COPY --from=builder --chown=65532:65532 /app /app
+COPY --from=builder --chown=65532:65532 /home/nonroot /home/nonroot
 COPY --from=builder /usr/bin/node /usr/bin/
 COPY --from=builder /usr/bin/ffmpeg /usr/bin/
 COPY --from=builder /usr/lib /usr/lib

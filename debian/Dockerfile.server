@@ -17,9 +17,9 @@ RUN apt-get update && \
     # wget -qO- https://debian.vejeta.com/public.key | gpg --dearmor > /etc/apt/trusted.gpg.d/vejeta.gpg && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-        stremio-server \
-        # Node.js runtime (if needed by stremio-server)
-        nodejs \
+        stremio \
+        # Note: debian.vejeta.com doesn't have separate stremio-server package
+        # Using full stremio package in headless server mode
         # FFmpeg for transcoding
         ffmpeg \
         libavcodec59 \
@@ -36,10 +36,10 @@ RUN apt-get update && \
 
 # Create directory structure and copy binaries
 RUN mkdir -p /app/bin /app/lib && \
-    cp -a /usr/bin/stremio-server /app/bin/ 2>/dev/null || cp -a /usr/local/bin/stremio-server /app/bin/ && \
+    cp -a /usr/bin/stremio /app/bin/ && \
     # Copy required shared libraries
-    ldd /app/bin/stremio-server | grep "=>" | awk '{print $3}' | xargs -I {} cp -v {} /app/lib/ || true && \
-    # Copy ffmpeg if stremio-server depends on it
+    ldd /usr/bin/stremio | grep "=>" | awk '{print $3}' | xargs -I {} cp -v {} /app/lib/ || true && \
+    # Copy ffmpeg for transcoding
     cp -a /usr/bin/ffmpeg /app/bin/ 2>/dev/null || true && \
     ldd /usr/bin/ffmpeg 2>/dev/null | grep "=>" | awk '{print $3}' | xargs -I {} cp -v {} /app/lib/ || true
 
@@ -76,8 +76,8 @@ EXPOSE 11470 12470
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD ["/app/bin/stremio-server", "--version"]
+    CMD ["/app/bin/stremio", "--version"]
 
-# Default command
-ENTRYPOINT ["/app/bin/stremio-server"]
-CMD []
+# Default command (server mode)
+ENTRYPOINT ["/app/bin/stremio"]
+CMD ["--server"]

@@ -17,52 +17,9 @@ RUN apt-get update && \
     # wget -qO- https://debian.vejeta.com/public.key | gpg --dearmor > /etc/apt/trusted.gpg.d/vejeta.gpg && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-        stremio \
-        # Graphics and video acceleration
-        libgl1-mesa-dri \
-        libgl1-mesa-glx \
-        libglx-mesa0 \
-        mesa-va-drivers \
-        mesa-vdpau-drivers \
-        libva2 \
-        libvdpau1 \
-        # Qt5 runtime
-        libqt5core5a \
-        libqt5gui5 \
-        libqt5widgets5 \
-        libqt5network5 \
-        libqt5qml5 \
-        libqt5quick5 \
-        libqt5webchannel5 \
-        libqt5webengine5 \
-        libqt5webenginecore5 \
-        libqt5webenginewidgets5 \
-        # Multimedia codecs
-        libavcodec59 \
-        libavformat59 \
-        libavutil57 \
-        libswscale6 \
-        libswresample4 \
-        libvpx7 \
-        libopus0 \
-        libvorbis0a \
-        libvorbisenc2 \
-        # Audio support
-        libasound2 \
-        libpulse0 \
-        # X11 and display
-        libx11-6 \
-        libxcb1 \
-        libxcomposite1 \
-        libxdamage1 \
-        libxext6 \
-        libxfixes3 \
-        libxrandr2 \
-        libxrender1 \
-        libxtst6 \
-        # Fonts
-        fonts-liberation \
-        fonts-dejavu-core && \
+        stremio && \
+    # Note: stremio package declares all required Qt5, multimedia, and X11 dependencies
+    # apt automatically resolves them (including t64-suffixed packages for trixie)
     # Clean up to reduce layer size
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
