@@ -11,10 +11,9 @@ RUN apt-get update && \
         ca-certificates \
         gnupg \
         wget && \
-    # Add custom Debian repository
-    echo "deb https://debian.vejeta.com trixie main" > /etc/apt/sources.list.d/vejeta.list && \
-    # Note: In production, add GPG key verification:
-    # wget -qO- https://debian.vejeta.com/public.key | gpg --dearmor > /etc/apt/trusted.gpg.d/vejeta.gpg && \
+    # Add custom Debian repository with GPG key verification
+    wget -qO - https://debian.vejeta.com/key.gpg | gpg --dearmor -o /usr/share/keyrings/stremio-debian.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/stremio-debian.gpg] https://debian.vejeta.com trixie main non-free" > /etc/apt/sources.list.d/stremio.list && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
         stremio && \
