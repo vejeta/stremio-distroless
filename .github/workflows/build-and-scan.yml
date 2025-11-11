@@ -35,21 +35,26 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ecosystem: [wolfi, debian]
-        variant: [gui, server]
         include:
           - ecosystem: wolfi
-            base_image: "Chainguard Wolfi"
-            dockerfile_dir: wolfi
-          - ecosystem: debian
-            base_image: "Debian Trixie"
-            dockerfile_dir: debian
-          - variant: gui
+            variant: gui
             dockerfile: Dockerfile
+            base_image: "Chainguard Wolfi"
             platforms: linux/amd64
-            # Multi-arch disabled for testing: linux/amd64,linux/arm64
-          - variant: server
+          - ecosystem: wolfi
+            variant: server
             dockerfile: Dockerfile.server
+            base_image: "Chainguard Wolfi"
+            platforms: linux/amd64
+          - ecosystem: debian
+            variant: gui
+            dockerfile: Dockerfile
+            base_image: "Debian Trixie"
+            platforms: linux/amd64
+          - ecosystem: debian
+            variant: server
+            dockerfile: Dockerfile.server
+            base_image: "Debian Trixie"
             platforms: linux/amd64
 
     steps:
@@ -92,7 +97,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ${{ matrix.dockerfile_dir }}/${{ matrix.dockerfile }}
+          file: ${{ matrix.ecosystem }}/${{ matrix.dockerfile }}
           platforms: ${{ matrix.platforms }}
           push: false  # DISABLED: Set to true after testing
           tags: ${{ steps.meta.outputs.tags }}
@@ -100,12 +105,13 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.ecosystem }}-${{ matrix.variant }}
           cache-to: type=gha,mode=max,scope=${{ matrix.ecosystem }}-${{ matrix.variant }}
           load: true
-          outputs: type=docker,dest=/tmp/${{ matrix.ecosystem }}-${{ matrix.variant }}.tar
 
-      - name: Load image for scanning
+      - name: Set image tag for scanning
         run: |
-          docker load --input /tmp/${{ matrix.ecosystem }}-${{ matrix.variant }}.tar
-          echo "IMAGE_TAG=$(docker images --format '{{.Repository}}:{{.Tag}}' | head -n1)" >> $GITHUB_ENV
+          # Image is already loaded by build-push-action with load: true
+          # Extract the first tag from metadata
+          echo "IMAGE_TAG=$(echo '${{ steps.meta.outputs.tags }}' | head -n1)" >> $GITHUB_ENV
+          echo "Using image tag: $IMAGE_TAG"
 
       # ==================== SBOM Generation ====================
 
