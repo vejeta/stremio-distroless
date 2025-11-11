@@ -27,9 +27,16 @@ RUN apt-get update && \
 RUN mkdir -p /app/bin /app/lib /app/share
 
 # Copy Stremio binary and required libraries
-RUN cp -a /usr/bin/stremio /app/bin/ && \
+RUN if [ -f /usr/bin/stremio ]; then \
+        cp -a /usr/bin/stremio /app/bin/; \
+    elif [ -f /usr/games/stremio ]; then \
+        cp -a /usr/games/stremio /app/bin/; \
+    else \
+        echo "ERROR: stremio binary not found in /usr/bin or /usr/games"; \
+        exit 1; \
+    fi && \
     # Copy all required shared libraries
-    ldd /usr/bin/stremio | grep "=>" | awk '{print $3}' | xargs -I {} cp -v {} /app/lib/ || true && \
+    ldd /app/bin/stremio | grep "=>" | awk '{print $3}' | xargs -I {} cp -v {} /app/lib/ || true && \
     # Copy Qt plugins
     cp -a /usr/lib/x86_64-linux-gnu/qt5 /app/lib/ || true && \
     # Copy Mesa drivers
