@@ -1,0 +1,83 @@
+# Secure Stremio Server Container - Debian Variant with Google Distroless
+# Headless server without GUI dependencies
+# Multi-stage build following security best practices
+
+# Stage 1: Builder - Debian trixie (stable)
+FROM debian:trixie-slim AS builder
+
+# Install dependencies and Stremio server from custom repository
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        gnupg \
+        wget && \
+    # Add custom Debian repository
+    echo "deb https://debian.vejeta.com trixie main" > /etc/apt/sources.list.d/vejeta.list && \
+    # Note: In production, add GPG key verification:
+    # wget -qO- https://debian.vejeta.com/public.key | gpg --dearmor > /etc/apt/trusted.gpg.d/vejeta.gpg && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        stremio-server \
+        # Node.js runtime (if needed by stremio-server)
+        nodejs \
+        # FFmpeg for transcoding
+        ffmpeg \
+        libavcodec59 \
+        libavformat59 \
+        libavutil57 \
+        libswscale6 \
+        # Minimal runtime dependencies
+        libc6 \
+        libgcc-s1 \
+        libstdc++6 && \
+    # Clean up
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Create directory structure and copy binaries
+RUN mkdir -p /app/bin /app/lib && \
+    cp -a /usr/bin/stremio-server /app/bin/ 2>/dev/null || cp -a /usr/local/bin/stremio-server /app/bin/ && \
+    # Copy required shared libraries
+    ldd /app/bin/stremio-server | grep "=>" | awk '{print $3}' | xargs -I {} cp -v {} /app/lib/ || true && \
+    # Copy ffmpeg if stremio-server depends on it
+    cp -a /usr/bin/ffmpeg /app/bin/ 2>/dev/null || true && \
+    ldd /usr/bin/ffmpeg 2>/dev/null | grep "=>" | awk '{print $3}' | xargs -I {} cp -v {} /app/lib/ || true
+
+# Stage 2: Runtime - Google Distroless
+FROM gcr.io/distroless/base-debian12:nonroot
+
+# Metadata
+LABEL maintainer="vejeta"
+LABEL org.opencontainers.image.title="Stremio Server Secure Container (Debian)"
+LABEL org.opencontainers.image.description="Security-hardened headless Stremio server using Google Distroless"
+LABEL org.opencontainers.image.source="https://github.com/vejeta/stremio-distroless"
+LABEL org.opencontainers.image.vendor="vejeta"
+LABEL org.opencontainers.image.licenses="GPL-3.0"
+
+# Security: Run as nonroot user
+USER 65532:65532
+
+# Copy application from builder
+COPY --from=builder --chown=65532:65532 /app /app
+
+# Set library path
+ENV LD_LIBRARY_PATH=/app/lib
+ENV PATH=/app/bin:$PATH
+
+# Server configuration
+ENV HOME=/home/nonroot
+ENV STREMIO_SERVER_PORT=11470
+ENV STREMIO_CACHE_ROOT=/home/nonroot/.stremio-server
+
+WORKDIR /home/nonroot
+
+# Expose server ports
+EXPOSE 11470 12470
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD ["/app/bin/stremio-server", "--version"]
+
+# Default command
+ENTRYPOINT ["/app/bin/stremio-server"]
+CMD []

@@ -1,0 +1,44 @@
+# Docker/Container files
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# OCI Runtime
+oci/rootfs/
+oci/bundle/
+oci/*.tar
+oci/*.tar.gz
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+*~
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Build artifacts
+*.o
+*.a
+*.so
+
+# Container data
+.stremio-server/
+stremio-data/
+
+# X11 auth
+.Xauthority
+.docker.xauth*
+.podman-stremio.xauth*
+
+# Environment
+.env
+.env.local
+
+# GitHub Actions cache
+.github/workflows/cache/

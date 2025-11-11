@@ -1,0 +1,62 @@
+version: '3.8'
+
+# Stremio Podman Compose Configuration
+# Optimized for rootless Podman deployment
+# GPLv3 License - https://github.com/vejeta/stremio-distroless
+
+services:
+  stremio-server:
+    image: ghcr.io/vejeta/stremio-distroless:server
+    container_name: stremio-server-podman
+
+    # Security (enhanced by Podman's rootless nature)
+    security_opt:
+      - no-new-privileges:true
+      - label=type:container_runtime_t
+    cap_drop:
+      - ALL
+    read_only: true
+
+    # User namespace (Podman handles this better than Docker)
+    user: "${UID:-1000}:${GID:-1000}"
+
+    # Environment
+    environment:
+      - NODE_ENV=production
+
+    # Ports
+    ports:
+      - "11470:11470"
+      - "12470:12470"
+
+    # Volumes
+    volumes:
+      - stremio-server-data:/home/nonroot/.stremio-server:rw,Z
+
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=512m
+
+    # Resource limits
+    mem_limit: 1g
+    cpus: 1.5
+    pids_limit: 100
+
+    # Health check
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:11470/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Podman-specific: systemd integration
+    labels:
+      io.podman.annotations.autoremove: "true"
+      io.podman.annotations.privileged: "false"
+
+volumes:
+  stremio-server-data:
+    driver: local

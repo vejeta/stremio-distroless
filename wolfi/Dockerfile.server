@@ -1,0 +1,61 @@
+# Stremio Server Only - Headless Variant
+# For server-only deployments without GUI requirements
+# GPLv3 License - https://github.com/vejeta/stremio-distroless
+
+# ============================================================================
+# Stage 1: Builder
+# ============================================================================
+FROM cgr.dev/chainguard/wolfi-base:latest AS builder
+
+# Add custom Wolfi APK repository
+RUN echo "https://sourceforge.net/projects/wolfi/files/x86_64/" >> /etc/apk/repositories
+
+# Install minimal dependencies for server-only mode
+RUN apk update && apk add --no-cache \
+    stremio-server \
+    nodejs \
+    ffmpeg \
+    ca-certificates \
+    && rm -rf /var/cache/apk/*
+
+# ============================================================================
+# Stage 2: Distroless Runtime
+# ============================================================================
+FROM cgr.dev/chainguard/glibc-dynamic:latest
+
+LABEL org.opencontainers.image.title="Stremio Server (Headless)"
+LABEL org.opencontainers.image.description="Secure headless Stremio server based on Wolfi Linux"
+LABEL org.opencontainers.image.vendor="vejeta"
+LABEL org.opencontainers.image.licenses="GPL-3.0"
+LABEL org.opencontainers.image.source="https://github.com/vejeta/stremio-distroless"
+
+# Create nonroot user and directories
+USER root
+RUN mkdir -p /app /home/nonroot/.stremio-server /tmp && \
+    chown -R 65532:65532 /app /home/nonroot /tmp
+
+# Copy binaries from builder
+COPY --from=builder /usr/bin/stremio-server /app/
+COPY --from=builder /usr/bin/node /usr/bin/
+COPY --from=builder /usr/bin/ffmpeg /usr/bin/
+COPY --from=builder /usr/lib /usr/lib
+COPY --from=builder /etc/ssl /etc/ssl
+
+USER 65532:65532
+
+ENV HOME=/home/nonroot
+ENV USER=nonroot
+ENV NODE_ENV=production
+
+# Stremio server ports
+EXPOSE 11470
+EXPOSE 12470
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD ["/usr/bin/node", "--version"]
+
+WORKDIR /home/nonroot
+
+VOLUME ["/home/nonroot/.stremio-server"]
+
+CMD ["/app/stremio-server"]

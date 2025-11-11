@@ -1,0 +1,267 @@
+{
+  "ociVersion": "1.0.2",
+  "process": {
+    "terminal": false,
+    "user": {
+      "uid": 65532,
+      "gid": 65532
+    },
+    "args": [
+      "/app/stremio-server"
+    ],
+    "env": [
+      "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      "HOME=/home/nonroot",
+      "USER=nonroot",
+      "NODE_ENV=production"
+    ],
+    "cwd": "/home/nonroot",
+    "capabilities": {
+      "bounding": [],
+      "effective": [],
+      "inheritable": [],
+      "permitted": [],
+      "ambient": []
+    },
+    "rlimits": [
+      {
+        "type": "RLIMIT_NOFILE",
+        "hard": 1024,
+        "soft": 1024
+      },
+      {
+        "type": "RLIMIT_NPROC",
+        "hard": 200,
+        "soft": 200
+      }
+    ],
+    "noNewPrivileges": true
+  },
+  "root": {
+    "path": "rootfs",
+    "readonly": true
+  },
+  "hostname": "stremio-server",
+  "mounts": [
+    {
+      "destination": "/proc",
+      "type": "proc",
+      "source": "proc"
+    },
+    {
+      "destination": "/dev",
+      "type": "tmpfs",
+      "source": "tmpfs",
+      "options": [
+        "nosuid",
+        "strictatime",
+        "mode=755",
+        "size=65536k"
+      ]
+    },
+    {
+      "destination": "/dev/pts",
+      "type": "devpts",
+      "source": "devpts",
+      "options": [
+        "nosuid",
+        "noexec",
+        "newinstance",
+        "ptmxmode=0666",
+        "mode=0620"
+      ]
+    },
+    {
+      "destination": "/dev/shm",
+      "type": "tmpfs",
+      "source": "shm",
+      "options": [
+        "nosuid",
+        "noexec",
+        "nodev",
+        "mode=1777",
+        "size=65536k"
+      ]
+    },
+    {
+      "destination": "/sys",
+      "type": "sysfs",
+      "source": "sysfs",
+      "options": [
+        "nosuid",
+        "noexec",
+        "nodev",
+        "ro"
+      ]
+    },
+    {
+      "destination": "/tmp",
+      "type": "tmpfs",
+      "source": "tmpfs",
+      "options": [
+        "nosuid",
+        "noexec",
+        "nodev",
+        "mode=1777",
+        "size=512m"
+      ]
+    },
+    {
+      "destination": "/home/nonroot/.stremio-server",
+      "type": "bind",
+      "source": "/var/lib/stremio-server",
+      "options": [
+        "rbind",
+        "rw"
+      ]
+    }
+  ],
+  "linux": {
+    "resources": {
+      "memory": {
+        "limit": 1073741824,
+        "reservation": 536870912
+      },
+      "cpu": {
+        "shares": 1024,
+        "quota": 150000,
+        "period": 100000
+      },
+      "pids": {
+        "limit": 100
+      }
+    },
+    "namespaces": [
+      {
+        "type": "pid"
+      },
+      {
+        "type": "network"
+      },
+      {
+        "type": "ipc"
+      },
+      {
+        "type": "uts"
+      },
+      {
+        "type": "mount"
+      },
+      {
+        "type": "user"
+      }
+    ],
+    "uidMappings": [
+      {
+        "containerID": 0,
+        "hostID": 100000,
+        "size": 65536
+      }
+    ],
+    "gidMappings": [
+      {
+        "containerID": 0,
+        "hostID": 100000,
+        "size": 65536
+      }
+    ],
+    "maskedPaths": [
+      "/proc/acpi",
+      "/proc/asound",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/sys/firmware",
+      "/proc/scsi"
+    ],
+    "readonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "seccomp": {
+      "defaultAction": "SCMP_ACT_ERRNO",
+      "architectures": [
+        "SCMP_ARCH_X86_64",
+        "SCMP_ARCH_X86",
+        "SCMP_ARCH_X32"
+      ],
+      "syscalls": [
+        {
+          "names": [
+            "accept",
+            "accept4",
+            "access",
+            "bind",
+            "brk",
+            "clone",
+            "close",
+            "connect",
+            "dup",
+            "dup2",
+            "dup3",
+            "epoll_create",
+            "epoll_create1",
+            "epoll_ctl",
+            "epoll_wait",
+            "eventfd",
+            "eventfd2",
+            "execve",
+            "exit",
+            "exit_group",
+            "fcntl",
+            "fstat",
+            "futex",
+            "getcwd",
+            "getdents",
+            "getdents64",
+            "getegid",
+            "geteuid",
+            "getgid",
+            "getpid",
+            "getppid",
+            "getuid",
+            "ioctl",
+            "listen",
+            "lseek",
+            "mmap",
+            "mprotect",
+            "munmap",
+            "nanosleep",
+            "open",
+            "openat",
+            "pipe",
+            "pipe2",
+            "poll",
+            "read",
+            "readv",
+            "recvfrom",
+            "recvmsg",
+            "rt_sigaction",
+            "rt_sigprocmask",
+            "rt_sigreturn",
+            "sendmsg",
+            "sendto",
+            "set_robust_list",
+            "set_tid_address",
+            "setgid",
+            "setuid",
+            "shutdown",
+            "socket",
+            "stat",
+            "uname",
+            "wait4",
+            "write",
+            "writev"
+          ],
+          "action": "SCMP_ACT_ALLOW"
+        }
+      ]
+    }
+  }
+}
