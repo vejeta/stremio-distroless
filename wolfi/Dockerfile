@@ -9,8 +9,12 @@ FROM cgr.dev/chainguard/wolfi-base:latest AS builder
 
 # Add custom Wolfi APK repository from SourceForge
 # This repository contains Stremio and multimedia dependencies
-# Using SourceForge downloads mirror for direct APK access
-RUN echo "https://downloads.sourceforge.net/project/wolfi/repo/x86_64/" >> /etc/apk/repositories
+# Step 1: Install repository signing key
+RUN wget -O /etc/apk/keys/vejeta-wolfi.rsa.pub \
+    https://sourceforge.net/projects/wolfi/files/keys/vejeta-wolfi.rsa.pub/download
+
+# Step 2: Add repository URL (x86_64 architecture)
+RUN echo "https://downloads.sourceforge.net/project/wolfi/x86_64" >> /etc/apk/repositories
 
 # Install build dependencies and Stremio with multimedia support
 # Using --no-cache to avoid storing package cache in the image
