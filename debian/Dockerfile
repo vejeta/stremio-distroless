@@ -27,29 +27,9 @@ RUN apt-get update && \
 RUN mkdir -p /app/bin /app/lib /app/share
 
 # Copy Stremio binary and required libraries
-RUN set -x && \
-    # Debug: Show all files installed by stremio package
-    echo "=== Files installed by stremio package ===" && \
-    dpkg -L stremio && \
-    echo "=== Looking for stremio executable ===" && \
-    find /usr -name "stremio" -type f -executable 2>/dev/null || true && \
-    echo "=== Checking /usr/bin ===" && \
-    ls -la /usr/bin/ | grep -i stremio || echo "No stremio in /usr/bin" && \
-    # Find and copy stremio binary (could be in /usr/bin, /usr/games, or /usr/local/bin)
-    if [ -f /usr/bin/stremio ]; then \
-        echo "Found stremio at /usr/bin/stremio"; \
-        cp -a /usr/bin/stremio /app/bin/; \
-    elif [ -f /usr/games/stremio ]; then \
-        echo "Found stremio at /usr/games/stremio"; \
-        cp -a /usr/games/stremio /app/bin/; \
-    else \
-        echo "ERROR: Cannot find stremio binary!"; \
-        exit 1; \
-    fi && \
-    # Verify the copy worked
-    ls -la /app/bin/stremio && \
+RUN cp -a /usr/bin/stremio /app/bin/ && \
     # Copy all required shared libraries
-    ldd /app/bin/stremio | grep "=>" | awk '{print $3}' | xargs -I {} cp -v {} /app/lib/ || true && \
+    ldd /usr/bin/stremio | grep "=>" | awk '{print $3}' | xargs -I {} cp -v {} /app/lib/ || true && \
     # Copy Qt plugins
     cp -a /usr/lib/x86_64-linux-gnu/qt5 /app/lib/ || true && \
     # Copy Mesa drivers

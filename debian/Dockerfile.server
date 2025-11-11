@@ -27,25 +27,8 @@ RUN apt-get update && \
 
 # Create directory structure and copy binaries
 RUN mkdir -p /app/bin /app/lib && \
-    # Debug: Show what was installed
-    echo "=== Files from stremio package ===" && \
-    dpkg -L stremio | head -20 && \
-    echo "=== Files from stremio-server package ===" && \
-    dpkg -L stremio-server | head -20 && \
-    echo "=== Looking for stremio binary ===" && \
-    find /usr -name "stremio" -type f -executable 2>/dev/null || echo "No stremio executable found" && \
     # Copy stremio binary
-    if [ -f /usr/bin/stremio ]; then \
-        echo "Found at /usr/bin/stremio"; \
-        cp -a /usr/bin/stremio /app/bin/; \
-    elif [ -f /usr/games/stremio ]; then \
-        echo "Found at /usr/games/stremio"; \
-        cp -a /usr/games/stremio /app/bin/; \
-    else \
-        echo "ERROR: stremio binary not found!"; \
-        exit 1; \
-    fi && \
-    ls -la /app/bin/stremio && \
+    cp -a /usr/bin/stremio /app/bin/ && \
     # Copy required shared libraries
     ldd /app/bin/stremio | grep "=>" | awk '{print $3}' | xargs -I {} cp -v {} /app/lib/ || true
 
