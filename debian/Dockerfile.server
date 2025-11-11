@@ -26,37 +26,9 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Create directory structure and copy binaries
+# stremio-wrapper is a bash script, we need the actual binary from /usr/libexec/stremio/stremio
 RUN mkdir -p /app/bin /app/lib && \
-    # Debug: Check what was installed
-    echo "=== Checking stremio installation ===" && \
-    ls -la /usr/bin/stremio* || echo "No stremio in /usr/bin" && \
-    ls -la /usr/games/stremio* || echo "No stremio in /usr/games" && \
-    dpkg -L stremio | grep -E "(bin|games)" && \
-    echo "=== Attempting to copy stremio ===" && \
-    if [ -e /usr/bin/stremio ]; then \
-        echo "Found /usr/bin/stremio (type: $(file /usr/bin/stremio))"; \
-        if [ -L /usr/bin/stremio ]; then \
-            echo "It's a symlink to: $(readlink -f /usr/bin/stremio)"; \
-            REAL_FILE=$(readlink -f /usr/bin/stremio); \
-            echo "Copying real file: $REAL_FILE"; \
-            cp -v "$REAL_FILE" /app/bin/stremio; \
-        else \
-            cp -v /usr/bin/stremio /app/bin/; \
-        fi; \
-    elif [ -e /usr/games/stremio ]; then \
-        echo "Found /usr/games/stremio"; \
-        if [ -L /usr/games/stremio ]; then \
-            REAL_FILE=$(readlink -f /usr/games/stremio); \
-            cp -v "$REAL_FILE" /app/bin/stremio; \
-        else \
-            cp -v /usr/games/stremio /app/bin/; \
-        fi; \
-    else \
-        echo "ERROR: stremio binary not found"; \
-        exit 1; \
-    fi && \
-    ls -la /app/bin/ && \
-    file /app/bin/stremio && \
+    cp -a /usr/libexec/stremio/stremio /app/bin/ && \
     # Copy required shared libraries
     ldd /app/bin/stremio | grep "=>" | awk '{print $3}' | xargs -I {} cp -v {} /app/lib/ || true
 
@@ -85,6 +57,7 @@ ENV PATH=/app/bin:$PATH
 ENV HOME=/home/nonroot
 ENV STREMIO_SERVER_PORT=11470
 ENV STREMIO_CACHE_ROOT=/home/nonroot/.stremio-server
+ENV QTWEBENGINE_DISABLE_SANDBOX=1
 
 WORKDIR /home/nonroot
 

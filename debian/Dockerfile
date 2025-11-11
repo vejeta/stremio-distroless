@@ -27,36 +27,9 @@ RUN apt-get update && \
 RUN mkdir -p /app/bin /app/lib /app/share
 
 # Copy Stremio binary and required libraries
-# Debug: Check what was installed and where
-RUN echo "=== Checking stremio installation ===" && \
-    ls -la /usr/bin/stremio* || echo "No stremio in /usr/bin" && \
-    ls -la /usr/games/stremio* || echo "No stremio in /usr/games" && \
-    dpkg -L stremio | grep -E "(bin|games)" && \
-    echo "=== Attempting to copy stremio ===" && \
-    if [ -e /usr/bin/stremio ]; then \
-        echo "Found /usr/bin/stremio (type: $(file /usr/bin/stremio))"; \
-        if [ -L /usr/bin/stremio ]; then \
-            echo "It's a symlink to: $(readlink -f /usr/bin/stremio)"; \
-            REAL_FILE=$(readlink -f /usr/bin/stremio); \
-            echo "Copying real file: $REAL_FILE"; \
-            cp -v "$REAL_FILE" /app/bin/stremio; \
-        else \
-            cp -v /usr/bin/stremio /app/bin/; \
-        fi; \
-    elif [ -e /usr/games/stremio ]; then \
-        echo "Found /usr/games/stremio (type: $(file /usr/games/stremio))"; \
-        if [ -L /usr/games/stremio ]; then \
-            REAL_FILE=$(readlink -f /usr/games/stremio); \
-            cp -v "$REAL_FILE" /app/bin/stremio; \
-        else \
-            cp -v /usr/games/stremio /app/bin/; \
-        fi; \
-    else \
-        echo "ERROR: stremio binary not found"; \
-        exit 1; \
-    fi && \
-    ls -la /app/bin/ && \
-    file /app/bin/stremio && \
+# stremio-wrapper is a bash script that calls /usr/libexec/stremio/stremio
+# We need the actual binary, not the wrapper script (distroless has no bash)
+RUN cp -a /usr/libexec/stremio/stremio /app/bin/ && \
     # Copy all required shared libraries
     ldd /app/bin/stremio | grep "=>" | awk '{print $3}' | xargs -I {} cp -v {} /app/lib/ || true && \
     # Copy Qt plugins
@@ -91,6 +64,7 @@ ENV VDPAU_DRIVER_PATH=/app/lib/vdpau
 # X11 and display settings
 ENV DISPLAY=:0
 ENV QT_X11_NO_MITSHM=1
+ENV QTWEBENGINE_DISABLE_SANDBOX=1
 
 # Stremio data directory (writable volume mount)
 ENV HOME=/home/nonroot
