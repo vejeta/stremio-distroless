@@ -27,15 +27,36 @@ RUN apt-get update && \
 RUN mkdir -p /app/bin /app/lib /app/share
 
 # Copy Stremio binary and required libraries
-# Use -L to dereference symlinks (stremio may be a symlink to stremio-wrapper)
-RUN if [ -f /usr/bin/stremio ]; then \
-        cp -L /usr/bin/stremio /app/bin/; \
-    elif [ -f /usr/games/stremio ]; then \
-        cp -L /usr/games/stremio /app/bin/; \
+# Debug: Check what was installed and where
+RUN echo "=== Checking stremio installation ===" && \
+    ls -la /usr/bin/stremio* || echo "No stremio in /usr/bin" && \
+    ls -la /usr/games/stremio* || echo "No stremio in /usr/games" && \
+    dpkg -L stremio | grep -E "(bin|games)" && \
+    echo "=== Attempting to copy stremio ===" && \
+    if [ -e /usr/bin/stremio ]; then \
+        echo "Found /usr/bin/stremio (type: $(file /usr/bin/stremio))"; \
+        if [ -L /usr/bin/stremio ]; then \
+            echo "It's a symlink to: $(readlink -f /usr/bin/stremio)"; \
+            REAL_FILE=$(readlink -f /usr/bin/stremio); \
+            echo "Copying real file: $REAL_FILE"; \
+            cp -v "$REAL_FILE" /app/bin/stremio; \
+        else \
+            cp -v /usr/bin/stremio /app/bin/; \
+        fi; \
+    elif [ -e /usr/games/stremio ]; then \
+        echo "Found /usr/games/stremio (type: $(file /usr/games/stremio))"; \
+        if [ -L /usr/games/stremio ]; then \
+            REAL_FILE=$(readlink -f /usr/games/stremio); \
+            cp -v "$REAL_FILE" /app/bin/stremio; \
+        else \
+            cp -v /usr/games/stremio /app/bin/; \
+        fi; \
     else \
-        echo "ERROR: stremio binary not found in /usr/bin or /usr/games"; \
+        echo "ERROR: stremio binary not found"; \
         exit 1; \
     fi && \
+    ls -la /app/bin/ && \
+    file /app/bin/stremio && \
     # Copy all required shared libraries
     ldd /app/bin/stremio | grep "=>" | awk '{print $3}' | xargs -I {} cp -v {} /app/lib/ || true && \
     # Copy Qt plugins
