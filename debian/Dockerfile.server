@@ -28,8 +28,10 @@ RUN apt-get update && \
 RUN mkdir -p /app && \
     cp /usr/share/stremio/server.js /app/
 
-# Stage 2: Runtime - Google Distroless with Node.js (Debian 13/trixie)
-FROM gcr.io/distroless/nodejs-debian13:nonroot
+# Stage 2: Runtime - Google Distroless with Node.js (Debian 12)
+# Note: nodejs-debian13 doesn't exist yet, using debian12
+# server.js is pure JavaScript, so no glibc compatibility issues
+FROM gcr.io/distroless/nodejs20-debian12:nonroot
 
 # Metadata
 LABEL maintainer="vejeta"
@@ -59,9 +61,9 @@ EXPOSE 11470 12470
 # Volume for persistent cache and configuration
 VOLUME ["/home/nonroot/.stremio-server"]
 
-# Health check - Node.js will respond on port 11470 once started
+# Health check - verify node is running
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-    CMD ["/nodejs/bin/node", "-e", "process.exit(0)"]
+    CMD ["node", "-e", "process.exit(0)"]
 
-# Run server.js with Node.js
-ENTRYPOINT ["/nodejs/bin/node", "/app/server.js"]
+# Run server.js with Node.js (entrypoint is already "node" in distroless)
+CMD ["/app/server.js"]
