@@ -12,11 +12,11 @@ RUN apt-get update && \
         gnupg \
         wget && \
     # Add custom Debian repository
-    echo "deb https://debian.vejeta.com trixie main" > /etc/apt/sources.list.d/vejeta.list && \
+    echo "deb [trusted=yes] https://debian.vejeta.com trixie main" > /etc/apt/sources.list.d/vejeta.list && \
     # Note: In production, add GPG key verification:
     # wget -qO- https://debian.vejeta.com/public.key | gpg --dearmor > /etc/apt/trusted.gpg.d/vejeta.gpg && \
     apt-get update && \
-    apt-get install -y --no-install-recommends \
+    apt-get install -y --no-install-recommends --allow-unauthenticated \
         stremio-server \
         # Node.js runtime (if needed by stremio-server)
         nodejs \

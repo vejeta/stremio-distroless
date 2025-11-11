@@ -40,21 +40,13 @@ LABEL org.opencontainers.image.licenses="GPL-3.0"
 LABEL org.opencontainers.image.source="https://github.com/vejeta/stremio-distroless"
 LABEL org.opencontainers.image.documentation="https://github.com/vejeta/stremio-distroless/blob/main/README.md"
 
-# Create nonroot user and required directories
-# Following principle of least privilege
-USER root
-RUN mkdir -p /app /home/nonroot/.stremio-server /tmp && \
-    chown -R 65532:65532 /app /home/nonroot /tmp
-
 # Copy Stremio and dependencies from builder
-COPY --from=builder /usr/bin/stremio /app/
+# Note: Chainguard distroless images already run as nonroot (65532:65532)
+# and don't support USER root operations
+COPY --from=builder --chown=65532:65532 /usr/bin/stremio /app/
 COPY --from=builder /usr/lib /usr/lib
 COPY --from=builder /usr/share /usr/share
 COPY --from=builder /etc/ssl /etc/ssl
-
-# Switch to nonroot user (UID 65532)
-# This user has no shell and minimal permissions
-USER 65532:65532
 
 # Environment variables for security
 ENV HOME=/home/nonroot
