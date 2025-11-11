@@ -65,5 +65,6 @@ VOLUME ["/home/nonroot/.stremio-server"]
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD ["node", "-e", "process.exit(0)"]
 
-# Run server.js with Node.js (entrypoint is already "node" in distroless)
-CMD ["/app/server.js"]
+# Run server.js with Node.js
+# Use ENTRYPOINT to prevent override when running security tests
+ENTRYPOINT ["node", "/app/server.js"]
