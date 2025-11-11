@@ -63,8 +63,8 @@ VOLUME ["/home/nonroot/.stremio-server"]
 
 # Health check - verify node is running
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-    CMD ["node", "-e", "process.exit(0)"]
+    CMD ["/nodejs/bin/node", "-e", "process.exit(0)"]
 
 # Run server.js with Node.js
-# Use ENTRYPOINT to prevent override when running security tests
-ENTRYPOINT ["node", "/app/server.js"]
+# Use full path to node binary in distroless image
+ENTRYPOINT ["/nodejs/bin/node", "/app/server.js"]
