@@ -12,7 +12,8 @@ RUN apt-get update && \
         ca-certificates \
         gnupg \
         wget \
-        ffmpeg && \
+        ffmpeg \
+        procps && \
     # Add custom Debian repository with GPG key verification
     wget -qO - https://debian.vejeta.com/key.gpg | gpg --dearmor -o /usr/share/keyrings/stremio-debian.gpg && \
     echo "deb [signed-by=/usr/share/keyrings/stremio-debian.gpg] https://debian.vejeta.com bookworm main non-free" > /etc/apt/sources.list.d/stremio.list && \
@@ -26,11 +27,12 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Copy server.js and FFmpeg binaries to /app
+# Copy server.js, FFmpeg, and ps binaries to /app
 RUN mkdir -p /app/bin /app/lib && \
     cp /usr/share/stremio/server.js /app/ && \
     cp /usr/bin/ffmpeg /app/bin/ && \
     cp /usr/bin/ffprobe /app/bin/ && \
+    cp /usr/bin/ps /app/bin/ && \
     # Copy FFmpeg shared libraries (exclude base system libs)
     ldd /usr/bin/ffmpeg | grep "=>" | awk '{print $3}' | \
     grep -v -E '(libc\.so|libm\.so|libpthread\.so|libdl\.so|librt\.so|libresolv\.so|ld-linux)' | \
@@ -58,10 +60,11 @@ COPY --from=builder --chown=65532:65532 /app /app
 # Server configuration
 ENV HOME=/home/nonroot
 ENV NODE_ENV=production
+ENV PATH=/app/bin:$PATH
 # FFmpeg paths for transcoding
 ENV FFMPEG_BIN=/app/bin/ffmpeg
 ENV FFPROBE_BIN=/app/bin/ffprobe
-# Library path for FFmpeg dependencies
+# Library path for FFmpeg and ps dependencies
 ENV LD_LIBRARY_PATH=/app/lib
 # Optional: Disable CORS for remote access
 # ENV NO_CORS=1
