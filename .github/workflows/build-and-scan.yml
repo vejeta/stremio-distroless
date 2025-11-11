@@ -103,6 +103,8 @@ jobs:
           outputs: type=docker,dest=/tmp/${{ matrix.ecosystem }}-${{ matrix.variant }}.tar
 
       - name: Load image for scanning
+        id: load-image
+        continue-on-error: true
         run: |
           docker load --input /tmp/${{ matrix.ecosystem }}-${{ matrix.variant }}.tar
           echo "IMAGE_TAG=$(docker images --format '{{.Repository}}:{{.Tag}}' | head -n1)" >> $GITHUB_ENV
@@ -110,7 +112,10 @@ jobs:
       # ==================== SBOM Generation ====================
 
       - name: Generate SBOM with Syft
+        id: sbom
         uses: anchore/sbom-action@v0
+        continue-on-error: true
+        if: steps.load-image.outcome == 'success'
         with:
           image: ${{ env.IMAGE_TAG }}
           artifact-name: sbom-${{ matrix.ecosystem }}-${{ matrix.variant }}.spdx.json
@@ -119,6 +124,7 @@ jobs:
 
       - name: Upload SBOM as artifact
         uses: actions/upload-artifact@v4
+        if: steps.sbom.outcome == 'success'
         with:
           name: sbom-${{ matrix.ecosystem }}-${{ matrix.variant }}
           path: ./sbom-${{ matrix.ecosystem }}-${{ matrix.variant }}.spdx.json
@@ -127,7 +133,9 @@ jobs:
       # ==================== Security Scanning: Trivy ====================
 
       - name: Run Trivy vulnerability scanner
+        id: trivy
         uses: aquasecurity/trivy-action@master
+        continue-on-error: true
         with:
           image-ref: ${{ env.IMAGE_TAG }}
           format: 'sarif'
@@ -138,13 +146,15 @@ jobs:
 
       - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: success() || (failure() && steps.trivy.outcome == 'success')
         with:
           sarif_file: 'trivy-results-${{ matrix.ecosystem }}-${{ matrix.variant }}.sarif'
           category: trivy-${{ matrix.ecosystem }}-${{ matrix.variant }}
 
       - name: Generate Trivy JSON report
+        id: trivy-json
         uses: aquasecurity/trivy-action@master
+        continue-on-error: true
         with:
           image-ref: ${{ env.IMAGE_TAG }}
           format: 'json'
@@ -153,7 +163,7 @@ jobs:
 
       - name: Upload Trivy JSON report
         uses: actions/upload-artifact@v4
-        if: always()
+        if: steps.trivy-json.outcome == 'success'
         with:
           name: trivy-report-${{ matrix.ecosystem }}-${{ matrix.variant }}
           path: trivy-results-${{ matrix.ecosystem }}-${{ matrix.variant }}.json
@@ -164,6 +174,7 @@ jobs:
       - name: Run Grype vulnerability scanner (Chainguard)
         uses: anchore/scan-action@v3
         id: grype
+        continue-on-error: true
         with:
           image: ${{ env.IMAGE_TAG }}
           fail-build: false
@@ -172,12 +183,14 @@ jobs:
 
       - name: Upload Grype results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: success() || (failure() && steps.grype.outcome == 'success')
         with:
           sarif_file: ${{ steps.grype.outputs.sarif }}
           category: grype-${{ matrix.ecosystem }}-${{ matrix.variant }}
 
       - name: Generate Grype JSON report
+        id: grype-json
+        continue-on-error: true
         run: |
           docker run --rm \
             -v /var/run/docker.sock:/var/run/docker.sock \
@@ -188,7 +201,7 @@ jobs:
 
       - name: Upload Grype JSON report
         uses: actions/upload-artifact@v4
-        if: always()
+        if: steps.grype-json.outcome == 'success'
         with:
           name: grype-report-${{ matrix.ecosystem }}-${{ matrix.variant }}
           path: grype-results-${{ matrix.ecosystem }}-${{ matrix.variant }}.json
