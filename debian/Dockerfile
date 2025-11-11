@@ -30,8 +30,12 @@ RUN mkdir -p /app/bin /app/lib /app/share
 # stremio-wrapper is a bash script that calls /usr/libexec/stremio/stremio
 # We need the actual binary, not the wrapper script (distroless has no bash)
 RUN cp -a /usr/libexec/stremio/stremio /app/bin/ && \
-    # Copy all required shared libraries
-    ldd /app/bin/stremio | grep "=>" | awk '{print $3}' | xargs -I {} cp -v {} /app/lib/ || true && \
+    # Copy application-specific shared libraries (exclude base system libs)
+    # Distroless already provides libc, libm, libpthread, libdl, etc.
+    # Copying them causes glibc version conflicts (trixie builder vs bookworm runtime)
+    ldd /app/bin/stremio | grep "=>" | awk '{print $3}' | \
+    grep -v -E '(libc\.so|libm\.so|libpthread\.so|libdl\.so|librt\.so|libresolv\.so|ld-linux)' | \
+    xargs -I {} cp -v {} /app/lib/ || true && \
     # Copy Qt plugins
     cp -a /usr/lib/x86_64-linux-gnu/qt5 /app/lib/ || true && \
     # Copy Mesa drivers

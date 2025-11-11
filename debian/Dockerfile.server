@@ -29,8 +29,12 @@ RUN apt-get update && \
 # stremio-wrapper is a bash script, we need the actual binary from /usr/libexec/stremio/stremio
 RUN mkdir -p /app/bin /app/lib && \
     cp -a /usr/libexec/stremio/stremio /app/bin/ && \
-    # Copy required shared libraries
-    ldd /app/bin/stremio | grep "=>" | awk '{print $3}' | xargs -I {} cp -v {} /app/lib/ || true
+    # Copy application-specific shared libraries (exclude base system libs)
+    # Distroless already provides libc, libm, libpthread, etc.
+    # Copying them causes glibc version conflicts (trixie builder vs bookworm runtime)
+    ldd /app/bin/stremio | grep "=>" | awk '{print $3}' | \
+    grep -v -E '(libc\.so|libm\.so|libpthread\.so|libdl\.so|librt\.so|libresolv\.so|ld-linux)' | \
+    xargs -I {} cp -v {} /app/lib/ || true
 
 # Stage 2: Runtime - Google Distroless
 FROM gcr.io/distroless/base-debian12:nonroot
