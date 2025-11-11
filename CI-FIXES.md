@@ -1,10 +1,23 @@
 # GitHub Actions CI/CD Fixes - Correcciones para Distroless
 
-## 🔍 Problema Identificado
+## 🔍 Problemas Identificados
 
-El workflow `build-and-scan.yml` del PR #1 falló porque los **tests de seguridad intentaban ejecutar comandos dentro de contenedores distroless**, lo cual es imposible por diseño.
+El workflow `build-and-scan.yml` del PR #1 falló por **dos problemas principales**:
 
-### ❌ Código Problemático Original
+### Problema 1: Tests de Seguridad Incompatibles (Commit 299c886)
+Los **tests de seguridad intentaban ejecutar comandos dentro de contenedores distroless**, lo cual es imposible por diseño.
+
+### Problema 2: Configuración Incorrecta de Matrix (Commit 2f6417d)
+El workflow tenía una **configuración de matriz incorrecta** que no interpolaba correctamente `dockerfile_dir`, causando el error:
+```
+ERROR: failed to read dockerfile: open Dockerfile: no such file or directory
+```
+
+---
+
+## ❌ Problema 1: Tests de Seguridad
+
+### Código Problemático Original
 
 ```yaml
 # Test 1: Intentaba ejecutar 'id' dentro del contenedor
@@ -71,6 +84,132 @@ fi
 | **Requisitos** | Necesita shell y herramientas | No necesita nada dentro del contenedor |
 | **Compatibilidad** | ❌ Falla con distroless | ✅ Funciona con distroless |
 | **Precisión** | Indirecta (intenta ejecutar) | Directa (lee configuración) |
+
+---
+
+## ❌ Problema 2: Configuración Incorrecta de Matrix
+
+### Código Problemático Original
+
+```yaml
+strategy:
+  fail-fast: false
+  matrix:
+    ecosystem: [wolfi, debian]
+    variant: [gui, server]
+    include:
+      - ecosystem: wolfi
+        base_image: "Chainguard Wolfi"
+        dockerfile_dir: wolfi       # ❌ No se aplica correctamente
+      - ecosystem: debian
+        base_image: "Debian Trixie"
+        dockerfile_dir: debian      # ❌ No se aplica correctamente
+      - variant: gui
+        dockerfile: Dockerfile
+        platforms: linux/amd64
+      - variant: server
+        dockerfile: Dockerfile.server
+        platforms: linux/amd64
+```
+
+**Uso en el build step:**
+```yaml
+file: ${{ matrix.dockerfile_dir }}/${{ matrix.dockerfile }}
+#      ^^^^^^^^^^^^^^^^^^^^^^^^^ UNDEFINED! Causa error
+```
+
+### 💡 Por Qué Fallaba
+
+GitHub Actions genera 4 combinaciones de la matriz:
+- `ecosystem: wolfi, variant: gui`
+- `ecosystem: wolfi, variant: server`
+- `ecosystem: debian, variant: gui`
+- `ecosystem: debian, variant: server`
+
+El problema: los `include` intentan agregar `dockerfile_dir` pero:
+1. `dockerfile_dir: wolfi` solo especifica `ecosystem: wolfi` (sin `variant`)
+2. `dockerfile: Dockerfile` solo especifica `variant: gui` (sin `ecosystem`)
+3. GitHub Actions no puede hacer "match parcial" correctamente
+4. Resultado: `${{ matrix.dockerfile_dir }}` queda **vacío/undefined**
+5. El build intenta abrir `Dockerfile` en lugar de `wolfi/Dockerfile`
+
+**Error resultante:**
+```
+ERROR: failed to read dockerfile: open Dockerfile: no such file or directory
+```
+
+### ✅ Solución Implementada
+
+Cambié la matriz de **arrays cruzados con includes** a **lista explícita**:
+
+```yaml
+strategy:
+  fail-fast: false
+  matrix:
+    include:
+      - ecosystem: wolfi
+        variant: gui
+        dockerfile: Dockerfile
+        base_image: "Chainguard Wolfi"
+        platforms: linux/amd64
+      - ecosystem: wolfi
+        variant: server
+        dockerfile: Dockerfile.server
+        base_image: "Chainguard Wolfi"
+        platforms: linux/amd64
+      - ecosystem: debian
+        variant: gui
+        dockerfile: Dockerfile
+        base_image: "Debian Trixie"
+        platforms: linux/amd64
+      - ecosystem: debian
+        variant: server
+        dockerfile: Dockerfile.server
+        base_image: "Debian Trixie"
+        platforms: linux/amd64
+```
+
+**Y uso directo del ecosistema:**
+```yaml
+file: ${{ matrix.ecosystem }}/${{ matrix.dockerfile }}
+#      ^^^^^^^^^^^^^^^^^^^^^ Ahora es "wolfi" o "debian" - ¡siempre definido!
+```
+
+### Ventajas de la Nueva Configuración
+
+| Aspecto | Antes (❌) | Ahora (✅) |
+|---------|-----------|----------|
+| **Claridad** | Confuso con includes parciales | Explícito, cada combo completa |
+| **Mantenibilidad** | Difícil entender qué se aplica | Fácil ver todas las variables |
+| **Debugging** | Variables undefined | Todas las variables garantizadas |
+| **Escalabilidad** | Difícil agregar nuevos ecosistemas | Solo agregar nueva entrada |
+
+### Otros Cambios Relacionados
+
+**1. Eliminé `outputs` incompatible con `load`:**
+```yaml
+# ❌ Antes: Incompatible
+load: true
+outputs: type=docker,dest=/tmp/image.tar
+
+# ✅ Ahora: Solo load
+load: true
+```
+
+**2. Actualicé cómo se obtiene IMAGE_TAG:**
+```yaml
+# ❌ Antes: Cargar desde tar que ya no existe
+- name: Load image for scanning
+  run: |
+    docker load --input /tmp/${{ matrix.ecosystem }}-${{ matrix.variant }}.tar
+    echo "IMAGE_TAG=..." >> $GITHUB_ENV
+
+# ✅ Ahora: Obtener del output de metadata
+- name: Set image tag for scanning
+  run: |
+    # Image is already loaded by build-push-action with load: true
+    echo "IMAGE_TAG=$(echo '${{ steps.meta.outputs.tags }}' | head -n1)" >> $GITHUB_ENV
+```
 
 ---
 
@@ -153,19 +292,15 @@ docker run --rm test-image /bin/sh
 Las branches `claude/**` están configuradas para ejecutar los workflows:
 
 ```bash
-# Los cambios ya están en el branch actual
-git add .github/workflows/build-and-scan.yml test-ci-locally.sh CI-FIXES.md
-git commit -m "fix: Correct CI tests for distroless compatibility
+# Los cambios ya están pusheados al branch
+# Commits realizados:
+# - 299c886: fix: Correct CI tests for distroless compatibility
+# - 2f6417d: fix: Correct GitHub Actions matrix configuration and Docker build
 
-- Replace docker run commands with docker inspect
-- Tests now work with distroless images (no shell required)
-- Add local testing script (test-ci-locally.sh)
-- Document fixes in CI-FIXES.md
-
-Fixes compatibility issues from PR #1 where tests attempted to
-execute commands inside distroless containers."
-
-git push -u origin claude/stremio-distroless-context-011CV1LQ3sR4RtSh93JorpEe
+# Si necesitas hacer más cambios:
+git add .github/workflows/build-and-scan.yml
+git commit -m "fix: Additional CI improvements"
+git push origin claude/stremio-distroless-context-011CV1LQ3sR4RtSh93JorpEe
 ```
 
 ### Opción 2: Workflow Dispatch (Manual)
@@ -270,6 +405,32 @@ for ecosystem in wolfi debian; do
 done
 echo "🎉 All variants passed!"
 ```
+
+---
+
+## 📝 Historial de Correcciones
+
+### Commit 2f6417d (2025-11-11)
+**fix: Correct GitHub Actions matrix configuration and Docker build**
+
+Correcciones:
+- ✅ Simplificada configuración de matriz de arrays cruzados a lista explícita
+- ✅ Uso directo de `${{ matrix.ecosystem }}` en lugar de `dockerfile_dir`
+- ✅ Eliminado parámetro `outputs` incompatible con `load: true`
+- ✅ Actualizado método de obtención de IMAGE_TAG usando metadata output
+
+Fixes: Error "open Dockerfile: no such file or directory"
+
+### Commit 299c886 (2025-11-11)
+**fix: Correct CI tests for distroless compatibility**
+
+Correcciones:
+- ✅ Reemplazados tests que ejecutan comandos dentro del contenedor
+- ✅ Uso de `docker inspect` para verificar configuración sin ejecutar comandos
+- ✅ Agregado script de prueba local `test-ci-locally.sh`
+- ✅ Documentación completa en `CI-FIXES.md`
+
+Fixes: Tests fallaban intentando ejecutar comandos inexistentes en distroless
 
 ---
 
