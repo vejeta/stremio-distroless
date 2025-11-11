@@ -1,0 +1,23 @@
+architecture: x86_64
+creation_date: 1704067200  # Unix timestamp
+properties:
+  description: Secure Stremio container with distroless runtime
+  os: Linux
+  release: trixie
+  variant: secure
+  architecture: x86_64
+  name: stremio-secure
+
+# Incus-specific metadata
+templates:
+  /etc/hostname:
+    when:
+      - create
+      - copy
+    template: hostname.tpl
+
+  /etc/hosts:
+    when:
+      - create
+      - copy
+    template: hosts.tpl

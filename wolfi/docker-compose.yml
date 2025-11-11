@@ -1,0 +1,110 @@
+version: '3.8'
+
+# Stremio Docker Compose Configuration
+# Secure deployment with Wolfi-based containers
+# GPLv3 License - https://github.com/vejeta/stremio-distroless
+
+services:
+  stremio-gui:
+    image: ghcr.io/vejeta/stremio-distroless:latest
+    container_name: stremio-gui
+
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+      - seccomp:unconfined
+    cap_drop:
+      - ALL
+    read_only: true
+
+    # User namespace mapping
+    user: "${UID:-1000}:${GID:-1000}"
+
+    # Display and X11
+    environment:
+      - DISPLAY=${DISPLAY}
+      - XAUTHORITY=/tmp/.docker.xauth
+      - QT_X11_NO_MITSHM=1
+      - QT_QUICK_BACKEND=software
+      - PULSE_SERVER=unix:/run/user/${UID:-1000}/pulse/native
+
+    volumes:
+      # X11 socket (read-only)
+      - /tmp/.X11-unix:/tmp/.X11-unix:ro
+      - ${HOME}/.Xauthority:/tmp/.docker.xauth:ro
+
+      # PulseAudio socket (read-only)
+      - /run/user/${UID:-1000}/pulse:/run/user/${UID:-1000}/pulse:ro
+
+      # Stremio data (read-write)
+      - stremio-data:/home/nonroot/.stremio-server:rw
+
+    devices:
+      - /dev/dri:/dev/dri:rw
+      - /dev/snd:/dev/snd:rw
+
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=1g
+      - /home/nonroot/.config:rw,noexec,nosuid,mode=0700,size=100m
+
+    network_mode: host
+
+    # Resource limits
+    mem_limit: 2g
+    mem_reservation: 1g
+    cpus: 2.0
+    pids_limit: 200
+
+    restart: unless-stopped
+
+  stremio-server:
+    image: ghcr.io/vejeta/stremio-distroless:server
+    container_name: stremio-server
+
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+
+    # User namespace
+    user: "${UID:-1000}:${GID:-1000}"
+
+    # Environment
+    environment:
+      - NODE_ENV=production
+
+    # Ports
+    ports:
+      - "11470:11470"
+      - "12470:12470"
+
+    # Volumes
+    volumes:
+      - stremio-server-data:/home/nonroot/.stremio-server:rw
+
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=512m
+
+    # Resource limits
+    mem_limit: 1g
+    mem_reservation: 512m
+    cpus: 1.5
+    pids_limit: 100
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11470/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    restart: unless-stopped
+
+volumes:
+  stremio-data:
+    driver: local
+  stremio-server-data:
+    driver: local
