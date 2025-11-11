@@ -17,19 +17,9 @@ RUN apt-get update && \
     # wget -qO- https://debian.vejeta.com/public.key | gpg --dearmor > /etc/apt/trusted.gpg.d/vejeta.gpg && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-        stremio \
-        # Note: debian.vejeta.com doesn't have separate stremio-server package
-        # Using full stremio package in headless server mode
-        # FFmpeg for transcoding
-        ffmpeg \
-        libavcodec59 \
-        libavformat59 \
-        libavutil57 \
-        libswscale6 \
-        # Minimal runtime dependencies
-        libc6 \
-        libgcc-s1 \
-        libstdc++6 && \
+        stremio && \
+    # Note: stremio package declares all dependencies including multimedia libraries
+    # apt automatically resolves them for trixie
     # Clean up
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
