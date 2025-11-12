@@ -28,9 +28,17 @@ RUN wget -O /etc/apk/keys/vejeta-wolfi.rsa.pub \
 RUN echo "https://downloads.sourceforge.net/project/wolfi" >> /etc/apk/repositories
 
 # Step 3: Install stremio-server from custom repository
-RUN apk update && apk add --no-cache \
-    stremio-server \
-    && rm -rf /var/cache/apk/*
+# Check repository and key setup
+RUN echo "=== APK Repositories ===" && \
+    cat /etc/apk/repositories && \
+    echo "=== APK Keys ===" && \
+    ls -la /etc/apk/keys/ && \
+    echo "=== Key content (first 5 lines) ===" && \
+    head -5 /etc/apk/keys/vejeta-wolfi.rsa.pub && \
+    echo "=== Attempting apk update ===" && \
+    apk update --allow-untrusted && \
+    apk add --no-cache --allow-untrusted stremio-server && \
+    rm -rf /var/cache/apk/*
 
 # Copy server.js and required binaries
 RUN mkdir -p /app/bin /app/lib && \
