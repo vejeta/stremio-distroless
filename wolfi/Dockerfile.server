@@ -23,14 +23,6 @@ RUN echo "https://downloads.sourceforge.net/project/wolfi" >> /etc/apk/repositor
 RUN wget -O /etc/apk/keys/vejeta-wolfi.rsa.pub \
     'https://downloads.sourceforge.net/project/wolfi/keys/vejeta-wolfi.rsa.pub'
 
-# Debug: Verify the key file content
-RUN echo "=== Key file size ===" && \
-    ls -lh /etc/apk/keys/vejeta-wolfi.rsa.pub && \
-    echo "=== First 5 lines of key ===" && \
-    head -5 /etc/apk/keys/vejeta-wolfi.rsa.pub && \
-    echo "=== Last 2 lines of key ===" && \
-    tail -2 /etc/apk/keys/vejeta-wolfi.rsa.pub
-
 # Install stremio-server from custom repository
 RUN apk update && \
     apk add --no-cache stremio-server && \
