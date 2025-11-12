@@ -9,7 +9,14 @@ FROM cgr.dev/chainguard/wolfi-base:latest AS builder
 
 # Add custom Wolfi APK repository from SourceForge
 # This repository contains Stremio and multimedia dependencies
-RUN echo "https://sourceforge.net/projects/wolfi/files/x86_64/" >> /etc/apk/repositories
+
+# Supply chain security: Use pre-verified key from repository
+# Eliminates runtime dependency on external key servers
+# Key fingerprint (SHA256): 3a69e5ba1f59249cf4babaa29941d21ed3be5fae2c810ba34d00b10c4c5bd3b2
+COPY keys/vejeta-wolfi.rsa.pub /etc/apk/keys/vejeta-wolfi.rsa.pub
+
+# Add repository URL
+RUN echo "https://downloads.sourceforge.net/project/wolfi" >> /etc/apk/repositories
 
 # Install build dependencies and Stremio with multimedia support
 # Using --no-cache to avoid storing package cache in the image
@@ -27,6 +34,11 @@ RUN apk update && apk add --no-cache \
     ca-certificates \
     && rm -rf /var/cache/apk/*
 
+# Create directory structure in builder stage
+# (cannot create directories in distroless runtime)
+RUN mkdir -p /app /home/nonroot/.stremio-server && \
+    chown -R 65532:65532 /app /home/nonroot
+
 # ============================================================================
 # Stage 2: Runtime - Distroless minimal image for production
 # ============================================================================
@@ -40,14 +52,10 @@ LABEL org.opencontainers.image.licenses="GPL-3.0"
 LABEL org.opencontainers.image.source="https://github.com/vejeta/stremio-distroless"
 LABEL org.opencontainers.image.documentation="https://github.com/vejeta/stremio-distroless/blob/main/README.md"
 
-# Create nonroot user and required directories
-# Following principle of least privilege
-USER root
-RUN mkdir -p /app /home/nonroot/.stremio-server /tmp && \
-    chown -R 65532:65532 /app /home/nonroot /tmp
-
-# Copy Stremio and dependencies from builder
-COPY --from=builder /usr/bin/stremio /app/
+# Copy directory structure and files from builder
+# Distroless images cannot run shell commands, so all setup must be done in builder
+COPY --from=builder --chown=65532:65532 /app /app
+COPY --from=builder --chown=65532:65532 /home/nonroot /home/nonroot
 COPY --from=builder /usr/lib /usr/lib
 COPY --from=builder /usr/share /usr/share
 COPY --from=builder /etc/ssl /etc/ssl

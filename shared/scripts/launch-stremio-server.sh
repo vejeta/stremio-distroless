@@ -72,7 +72,7 @@ docker run -d \
     \
     "${IMAGE_NAME}" "$@"
 
-echo "✅ Stremio Server started successfully"
+echo "Stremio Server started successfully"
 echo ""
 echo "Access the server at:"
 echo "  HTTP:  http://localhost:${STREMIO_PORT}"

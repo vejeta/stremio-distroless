@@ -112,4 +112,4 @@ docker run --rm -it \
     \
     "${IMAGE_NAME}" "$@"
 
-echo "✅ Stremio exited successfully"
+echo "Stremio exited successfully"

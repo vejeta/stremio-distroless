@@ -50,13 +50,13 @@ podman-compose -f podman-compose.yml down
 
 ## Security Features
 
-- ✅ Rootless execution (no root privileges)
-- ✅ Automatic user namespaces
-- ✅ No privileged daemon
-- ✅ All capabilities dropped
-- ✅ Read-only filesystem
-- ✅ Resource limits enforced
-- ✅ SELinux enabled by default (if available)
+- Rootless execution (no root privileges)
+- Automatic user namespaces
+- No privileged daemon
+- All capabilities dropped
+- Read-only filesystem
+- Resource limits enforced
+- SELinux enabled by default (if available)
 
 ## systemd Integration
 

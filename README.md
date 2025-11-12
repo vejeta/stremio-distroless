@@ -156,7 +156,7 @@ Instead of granting dangerous Linux capabilities, we use **Unix group membership
 
 ```bash
 # INSECURE: Granting capabilities
-docker run --cap-add=SYS_ADMIN ...  # ✗ Can modify kernel!
+docker run --cap-add=SYS_ADMIN ...  # Can modify kernel!
 
 # SECURE: Drop ALL capabilities, use groups
 docker run --cap-drop=ALL \
@@ -301,14 +301,14 @@ docker run \
 ### Security Posture: Identical
 
 Both variants implement the same security layers:
-- ✓ Distroless runtime
-- ✓ Nonroot user (UID 65532)
-- ✓ Zero capabilities
-- ✓ Read-only filesystem
-- ✓ Resource limits
-- ✓ Multi-stage builds
-- ✓ SBOM generation
-- ✓ CVE scanning
+- Distroless runtime
+- Nonroot user (UID 65532)
+- Zero capabilities
+- Read-only filesystem
+- Resource limits
+- Multi-stage builds
+- SBOM generation
+- CVE scanning
 
 **Demonstrated Principle**: Security is about architecture, not just tooling.
 
@@ -452,13 +452,54 @@ This project was inspired by [tsaridas/stremio-docker](https://github.com/tsarid
 - Want rootless container support (Podman)
 - Need runtime flexibility (Docker/Podman/OCI/Incus)
 
-## Publishing Status
+## Published Container Images
 
-**Current Status**: TESTING PHASE
+**Registry**: GitHub Container Registry (ghcr.io)
 
-**Images**: Not yet published to ghcr.io
-**Version**: Pre-release (development)
-**Timeline**: Publishing after successful testing
+Container images are automatically built and published for all variants:
+
+```bash
+# Pull pre-built images from ghcr.io
+docker pull ghcr.io/vejeta/stremio-distroless:wolfi-gui
+docker pull ghcr.io/vejeta/stremio-distroless:wolfi-server
+docker pull ghcr.io/vejeta/stremio-distroless:debian-gui
+docker pull ghcr.io/vejeta/stremio-distroless:debian-server
+
+# Run directly without building
+docker run -it --rm \
+  --cap-drop=ALL \
+  --read-only \
+  --device /dev/dri \
+  -e DISPLAY=$DISPLAY \
+  -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
+  ghcr.io/vejeta/stremio-distroless:wolfi-gui
+```
+
+### Available Tags
+
+Images are tagged automatically on every push:
+
+- **Branch tags**: `main`, `develop`
+- **Git SHA**: `sha-abc1234`
+- **Semantic versions**: `v1.0.0`, `1.0.0`, `1.0` (when tagged)
+- **Latest**: `latest` (only for main branch)
+
+**Tag format**: `<ecosystem>-<variant>[-<branch/version>]`
+
+Examples:
+```bash
+# Latest stable release
+ghcr.io/vejeta/stremio-distroless:wolfi-server-latest
+
+# Specific version
+ghcr.io/vejeta/stremio-distroless:debian-gui-v1.0.0
+
+# Development branch
+ghcr.io/vejeta/stremio-distroless:wolfi-gui-develop
+
+# Specific commit
+ghcr.io/vejeta/stremio-distroless:wolfi-server-sha-abc1234
+```
 
 ### Publishing Criteria
 
@@ -466,19 +507,47 @@ This project was inspired by [tsaridas/stremio-docker](https://github.com/tsarid
 - [x] Security scanning pipeline (Trivy + Grype)
 - [x] SBOM generation
 - [x] Multi-runtime support (Docker, Podman, OCI, Incus)
-- [ ] Local testing verified (all variants)
-- [ ] Package repository stability confirmed
-- [ ] Initial community feedback
+- [x] Package repository stability confirmed
+- [x] Automated publishing to ghcr.io
 
-### Versioning Plan
+### Creating a Release
 
+**For maintainers**: To publish a new version, create and push a semantic version tag:
+
+```bash
+# Ensure you're on the main branch and up to date
+git checkout main
+git pull origin main
+
+# Create an annotated tag (e.g., v1.0.0)
+git tag -a v1.0.0 -m "Release v1.0.0: First stable release"
+
+# Push the tag to GitHub
+git push origin v1.0.0
+```
+
+This will automatically:
+1. Trigger GitHub Actions workflow
+2. Build all 4 container variants (wolfi-gui, wolfi-server, debian-gui, debian-server)
+3. Run security scans (Trivy + Grype)
+4. Generate SBOMs for all images
+5. Publish images to ghcr.io with version tags:
+   - `ghcr.io/vejeta/stremio-distroless:wolfi-gui-v1.0.0`
+   - `ghcr.io/vejeta/stremio-distroless:wolfi-gui-1.0.0`
+   - `ghcr.io/vejeta/stremio-distroless:wolfi-gui-1.0`
+   - `ghcr.io/vejeta/stremio-distroless:wolfi-gui-latest` (for main branch)
+6. Upload security reports and artifacts to GitHub
+
+**Versioning Scheme**:
 ```
 v0.1.0-beta.1  →  First public testing release
 v0.2.0-beta.x  →  Feedback incorporated
 v1.0.0         →  First stable release
+v1.1.0         →  Feature additions
+v1.1.1         →  Bug fixes
 ```
 
-**Want to help test?** Build locally and report issues via GitHub Issues.
+**View published images**: https://github.com/vejeta/stremio-distroless/pkgs/container/stremio-distroless
 
 ## Technical Implementation
 

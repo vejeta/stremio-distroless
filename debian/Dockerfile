@@ -2,7 +2,7 @@
 # Multi-stage build following security best practices
 # Packages from: https://debian.vejeta.com
 
-# Stage 1: Builder - Debian trixie (stable) with build tools
+# Stage 1: Builder - Debian trixie (testing/stable) with build tools
 FROM debian:trixie-slim AS builder
 
 # Install dependencies and Stremio from custom repository
@@ -11,58 +11,14 @@ RUN apt-get update && \
         ca-certificates \
         gnupg \
         wget && \
-    # Add custom Debian repository
-    echo "deb https://debian.vejeta.com trixie main" > /etc/apt/sources.list.d/vejeta.list && \
-    # Note: In production, add GPG key verification:
-    # wget -qO- https://debian.vejeta.com/public.key | gpg --dearmor > /etc/apt/trusted.gpg.d/vejeta.gpg && \
+    # Add custom Debian repository with GPG key verification
+    wget -qO - https://debian.vejeta.com/key.gpg | gpg --dearmor -o /usr/share/keyrings/stremio-debian.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/stremio-debian.gpg] https://debian.vejeta.com trixie main non-free" > /etc/apt/sources.list.d/stremio.list && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-        stremio \
-        # Graphics and video acceleration
-        libgl1-mesa-dri \
-        libgl1-mesa-glx \
-        libglx-mesa0 \
-        mesa-va-drivers \
-        mesa-vdpau-drivers \
-        libva2 \
-        libvdpau1 \
-        # Qt5 runtime
-        libqt5core5a \
-        libqt5gui5 \
-        libqt5widgets5 \
-        libqt5network5 \
-        libqt5qml5 \
-        libqt5quick5 \
-        libqt5webchannel5 \
-        libqt5webengine5 \
-        libqt5webenginecore5 \
-        libqt5webenginewidgets5 \
-        # Multimedia codecs
-        libavcodec59 \
-        libavformat59 \
-        libavutil57 \
-        libswscale6 \
-        libswresample4 \
-        libvpx7 \
-        libopus0 \
-        libvorbis0a \
-        libvorbisenc2 \
-        # Audio support
-        libasound2 \
-        libpulse0 \
-        # X11 and display
-        libx11-6 \
-        libxcb1 \
-        libxcomposite1 \
-        libxdamage1 \
-        libxext6 \
-        libxfixes3 \
-        libxrandr2 \
-        libxrender1 \
-        libxtst6 \
-        # Fonts
-        fonts-liberation \
-        fonts-dejavu-core && \
+        stremio && \
+    # Note: stremio package declares all required Qt5, multimedia, and X11 dependencies
+    # apt automatically resolves them (including t64-suffixed packages for trixie)
     # Clean up to reduce layer size
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -71,17 +27,23 @@ RUN apt-get update && \
 RUN mkdir -p /app/bin /app/lib /app/share
 
 # Copy Stremio binary and required libraries
-RUN cp -a /usr/bin/stremio /app/bin/ && \
-    # Copy all required shared libraries (will be filtered in next stage)
-    ldd /usr/bin/stremio | grep "=>" | awk '{print $3}' | xargs -I {} cp -v {} /app/lib/ || true && \
+# stremio-wrapper is a bash script that calls /usr/libexec/stremio/stremio
+# We need the actual binary, not the wrapper script (distroless has no bash)
+RUN cp -a /usr/libexec/stremio/stremio /app/bin/ && \
+    # Copy application-specific shared libraries (exclude base system libs)
+    # Distroless already provides libc, libm, libpthread, libdl, etc.
+    # No need to copy base system libs - builder and runtime both use same glibc version
+    ldd /app/bin/stremio | grep "=>" | awk '{print $3}' | \
+    grep -v -E '(libc\.so|libm\.so|libpthread\.so|libdl\.so|librt\.so|libresolv\.so|ld-linux.*)' | \
+    xargs -I {} cp -v {} /app/lib/ || true && \
     # Copy Qt plugins
     cp -a /usr/lib/x86_64-linux-gnu/qt5 /app/lib/ || true && \
     # Copy Mesa drivers
     mkdir -p /app/lib/dri && \
     cp -a /usr/lib/x86_64-linux-gnu/dri/*.so /app/lib/dri/ || true
 
-# Stage 2: Runtime - Google Distroless with glibc
-FROM gcr.io/distroless/base-debian12:nonroot
+# Stage 2: Runtime - Google Distroless with glibc (Debian 13/trixie)
+FROM gcr.io/distroless/base-debian13:nonroot
 
 # Metadata
 LABEL maintainer="vejeta"
@@ -106,6 +68,7 @@ ENV VDPAU_DRIVER_PATH=/app/lib/vdpau
 # X11 and display settings
 ENV DISPLAY=:0
 ENV QT_X11_NO_MITSHM=1
+ENV QTWEBENGINE_DISABLE_SANDBOX=1
 
 # Stremio data directory (writable volume mount)
 ENV HOME=/home/nonroot
