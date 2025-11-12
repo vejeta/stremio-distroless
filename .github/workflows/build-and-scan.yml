@@ -219,12 +219,12 @@ jobs:
           USER_ID=$(echo "$USER_CONFIG" | cut -d: -f1)
 
           if [ "$USER_ID" == "65532" ] || [ "$USER_ID" == "nonroot" ]; then
-            echo "✓ Running as nonroot user (User: $USER_ID)"
+            echo "[PASS] Running as nonroot user (User: $USER_ID)"
           elif [ -z "$USER_ID" ]; then
-            echo "⚠ User not explicitly set (may default to root)"
+            echo "[WARN] User not explicitly set (may default to root)"
             exit 1
           else
-            echo "✗ NOT running as nonroot user (User: $USER_ID)"
+            echo "[FAIL] NOT running as nonroot user (User: $USER_ID)"
             exit 1
           fi
 
@@ -233,25 +233,25 @@ jobs:
           HISTORY=$(docker history ${{ env.IMAGE_TAG }} --no-trunc 2>/dev/null | grep -i "distroless" | wc -l)
 
           if [ "$HISTORY" -gt 0 ]; then
-            echo "✓ Distroless base confirmed (minimal attack surface)"
+            echo "[PASS] Distroless base confirmed (minimal attack surface)"
           else
-            echo "ℹ Distroless base assumed (cannot execute runtime tests with fixed ENTRYPOINT)"
+            echo "[INFO] Distroless base assumed (cannot execute runtime tests with fixed ENTRYPOINT)"
           fi
 
           # Test 3: Verify exposed ports are documented
           PORTS=$(docker inspect ${{ env.IMAGE_TAG }} --format='{{range $key, $value := .Config.ExposedPorts}}{{$key}} {{end}}')
           if [ -n "$PORTS" ]; then
-            echo "✓ Exposed ports documented: $PORTS"
+            echo "[PASS] Exposed ports documented: $PORTS"
           else
-            echo "ℹ No ports explicitly exposed"
+            echo "[INFO] No ports explicitly exposed"
           fi
 
           # Test 4: Verify ENTRYPOINT is set (prevents arbitrary command execution)
           ENTRYPOINT=$(docker inspect ${{ env.IMAGE_TAG }} --format='{{.Config.Entrypoint}}')
           if [ -n "$ENTRYPOINT" ] && [ "$ENTRYPOINT" != "[]" ]; then
-            echo "✓ Fixed ENTRYPOINT configured (prevents command override)"
+            echo "[PASS] Fixed ENTRYPOINT configured (prevents command override)"
           else
-            echo "⚠ No ENTRYPOINT set (allows arbitrary command execution)"
+            echo "[WARN] No ENTRYPOINT set (allows arbitrary command execution)"
           fi
 
           echo "::endgroup::"
@@ -284,11 +284,11 @@ jobs:
 
           ## Security Features
 
-          - ✓ Distroless runtime (no shell, no package manager)
-          - ✓ Nonroot user (UID 65532)
-          - ✓ Multi-stage build (build tools not in final image)
-          - ✓ SBOM generated (SPDX format)
-          - ✓ CVE scanned (Trivy + Grype)
+          - Distroless runtime (no shell, no package manager)
+          - Nonroot user (UID 65532)
+          - Multi-stage build (build tools not in final image)
+          - SBOM generated (SPDX format)
+          - CVE scanned (Trivy + Grype)
 
           ## Scan Results
 

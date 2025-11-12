@@ -156,7 +156,7 @@ Instead of granting dangerous Linux capabilities, we use **Unix group membership
 
 ```bash
 # INSECURE: Granting capabilities
-docker run --cap-add=SYS_ADMIN ...  # ✗ Can modify kernel!
+docker run --cap-add=SYS_ADMIN ...  # Can modify kernel!
 
 # SECURE: Drop ALL capabilities, use groups
 docker run --cap-drop=ALL \
@@ -301,14 +301,14 @@ docker run \
 ### Security Posture: Identical
 
 Both variants implement the same security layers:
-- ✓ Distroless runtime
-- ✓ Nonroot user (UID 65532)
-- ✓ Zero capabilities
-- ✓ Read-only filesystem
-- ✓ Resource limits
-- ✓ Multi-stage builds
-- ✓ SBOM generation
-- ✓ CVE scanning
+- Distroless runtime
+- Nonroot user (UID 65532)
+- Zero capabilities
+- Read-only filesystem
+- Resource limits
+- Multi-stage builds
+- SBOM generation
+- CVE scanning
 
 **Demonstrated Principle**: Security is about architecture, not just tooling.
 
