@@ -34,7 +34,7 @@ RUN cp -a /usr/libexec/stremio/stremio /app/bin/ && \
     # Distroless already provides libc, libm, libpthread, libdl, etc.
     # No need to copy base system libs - builder and runtime both use same glibc version
     ldd /app/bin/stremio | grep "=>" | awk '{print $3}' | \
-    grep -v -E '(libc\.so|libm\.so|libpthread\.so|libdl\.so|librt\.so|libresolv\.so|ld-linux)' | \
+    grep -v -E '(libc\.so|libm\.so|libpthread\.so|libdl\.so|librt\.so|libresolv\.so|ld-linux.*)' | \
     xargs -I {} cp -v {} /app/lib/ || true && \
     # Copy Qt plugins
     cp -a /usr/lib/x86_64-linux-gnu/qt5 /app/lib/ || true && \

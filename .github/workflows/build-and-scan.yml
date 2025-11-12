@@ -218,7 +218,7 @@ jobs:
           USER_CONFIG=$(docker inspect ${{ env.IMAGE_TAG }} --format='{{.Config.User}}')
           USER_ID=$(echo "$USER_CONFIG" | cut -d: -f1)
 
-          if [ "$USER_ID" == "65532" ] || [ "$USER_ID" == "nonroot" ]; then
+          if [ "$USER_ID" = "65532" ] || [ "$USER_ID" = "nonroot" ]; then
             echo "[PASS] Running as nonroot user (User: $USER_ID)"
           elif [ -z "$USER_ID" ]; then
             echo "[WARN] User not explicitly set (may default to root)"
@@ -248,7 +248,7 @@ jobs:
 
           # Test 4: Verify ENTRYPOINT is set (prevents arbitrary command execution)
           ENTRYPOINT=$(docker inspect ${{ env.IMAGE_TAG }} --format='{{.Config.Entrypoint}}')
-          if [ -n "$ENTRYPOINT" ] && [ "$ENTRYPOINT" != "[]" ]; then
+          if [ -n "$ENTRYPOINT" ] && ! [ "$ENTRYPOINT" = "[]" ]; then
             echo "[PASS] Fixed ENTRYPOINT configured (prevents command override)"
           else
             echo "[WARN] No ENTRYPOINT set (allows arbitrary command execution)"
