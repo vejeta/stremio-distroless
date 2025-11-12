@@ -1,0 +1,11 @@
+# PLACEHOLDER: Replace with actual vejeta-wolfi.rsa.pub key
+#
+# To obtain the key:
+# wget -O keys/vejeta-wolfi.rsa.pub \
+#   'https://downloads.sourceforge.net/project/wolfi/keys/vejeta-wolfi.rsa.pub'
+#
+# Then calculate and document the SHA256 fingerprint:
+# sha256sum keys/vejeta-wolfi.rsa.pub
+#
+# This placeholder exists to demonstrate supply chain security best practices.
+# The actual key should be committed after verification.
