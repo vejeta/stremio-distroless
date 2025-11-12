@@ -16,8 +16,7 @@ RUN apk add --no-cache wget
 # Use downloads.sourceforge.net direct URL (no redirects)
 RUN wget -O /etc/apk/keys/vejeta-wolfi.rsa.pub \
     'https://downloads.sourceforge.net/project/wolfi/keys/vejeta-wolfi.rsa.pub' && \
-    echo "Verifying key download:" && \
-    file /etc/apk/keys/vejeta-wolfi.rsa.pub && \
+    echo "Key downloaded (first line):" && \
     head -1 /etc/apk/keys/vejeta-wolfi.rsa.pub
 
 # Step 3: Add repository URL (APK will auto-append /x86_64)
