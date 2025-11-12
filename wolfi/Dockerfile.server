@@ -7,28 +7,40 @@
 # ============================================================================
 FROM cgr.dev/chainguard/wolfi-base:latest AS builder
 
-# Add custom Wolfi APK repository from SourceForge
-# Step 1: Install wget (needed for downloading signing key)
-RUN apk add --no-cache wget
-
-# Step 2: Download and install repository signing key
-RUN wget -O /etc/apk/keys/vejeta-wolfi.rsa.pub \
-    https://sourceforge.net/projects/wolfi/files/keys/vejeta-wolfi.rsa.pub/download
-
-# Step 3: Add repository URL (x86_64 architecture)
-RUN echo "https://downloads.sourceforge.net/project/wolfi/x86_64" >> /etc/apk/repositories
-
-# Install minimal dependencies for server-only mode
+# Install base dependencies from Chainguard repository
 RUN apk update && apk add --no-cache \
-    stremio-server \
+    wget \
     nodejs \
     ffmpeg \
     ca-certificates \
+    procps \
     && rm -rf /var/cache/apk/*
 
-# Create directory structure in builder stage
-# (cannot create directories in distroless runtime)
-RUN mkdir -p /app /home/nonroot/.stremio-server && \
+# Add custom Wolfi APK repository from SourceForge
+# Step 1: Download and install repository signing key
+RUN wget -O /etc/apk/keys/vejeta-wolfi.rsa.pub \
+    https://sourceforge.net/projects/wolfi/files/keys/vejeta-wolfi.rsa.pub/download
+
+# Step 2: Add repository URL (x86_64 architecture)
+RUN echo "https://downloads.sourceforge.net/project/wolfi/x86_64" >> /etc/apk/repositories
+
+# Step 3: Install stremio-server from custom repository
+RUN apk update && apk add --no-cache \
+    stremio-server \
+    && rm -rf /var/cache/apk/*
+
+# Copy server.js and required binaries
+RUN mkdir -p /app/bin /app/lib && \
+    cp /usr/share/stremio/server.js /app/ && \
+    cp /usr/bin/node /app/bin/ && \
+    cp /usr/bin/ffmpeg /app/bin/ && \
+    cp /usr/bin/ffprobe /app/bin/ && \
+    cp /usr/bin/ps /app/bin/ && \
+    # Copy required shared libraries
+    ldd /usr/bin/ffmpeg | grep "=>" | awk '{print $3}' | xargs -I {} cp {} /app/lib/ 2>/dev/null || true
+
+# Create directory structure for runtime
+RUN mkdir -p /home/nonroot/.stremio-server && \
     chown -R 65532:65532 /app /home/nonroot
 
 # ============================================================================
@@ -36,36 +48,40 @@ RUN mkdir -p /app /home/nonroot/.stremio-server && \
 # ============================================================================
 FROM cgr.dev/chainguard/glibc-dynamic:latest
 
-LABEL org.opencontainers.image.title="Stremio Server (Headless)"
-LABEL org.opencontainers.image.description="Secure headless Stremio server based on Wolfi Linux"
+LABEL org.opencontainers.image.title="Stremio Streaming Server (Wolfi)"
+LABEL org.opencontainers.image.description="Security-hardened headless Stremio streaming server"
 LABEL org.opencontainers.image.vendor="vejeta"
-LABEL org.opencontainers.image.licenses="GPL-3.0"
+LABEL org.opencontainers.image.licenses="Proprietary (stremio-server)"
 LABEL org.opencontainers.image.source="https://github.com/vejeta/stremio-distroless"
 
-# Copy directory structure and binaries from builder
-# Distroless images cannot run shell commands
-COPY --from=builder --chown=65532:65532 /app /app
-COPY --from=builder --chown=65532:65532 /home/nonroot /home/nonroot
-COPY --from=builder /usr/bin/node /usr/bin/
-COPY --from=builder /usr/bin/ffmpeg /usr/bin/
-COPY --from=builder /usr/lib /usr/lib
-COPY --from=builder /etc/ssl /etc/ssl
-
+# Security: Run as nonroot user
 USER 65532:65532
 
+# Copy application from builder
+COPY --from=builder --chown=65532:65532 /app /app
+COPY --from=builder --chown=65532:65532 /home/nonroot /home/nonroot
+
+# Server configuration
 ENV HOME=/home/nonroot
-ENV USER=nonroot
 ENV NODE_ENV=production
+ENV PATH=/app/bin:$PATH
+# FFmpeg paths for transcoding
+ENV FFMPEG_BIN=/app/bin/ffmpeg
+ENV FFPROBE_BIN=/app/bin/ffprobe
+# Library path for shared dependencies
+ENV LD_LIBRARY_PATH=/app/lib
 
-# Stremio server ports
-EXPOSE 11470
-EXPOSE 12470
+WORKDIR /app
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD ["/usr/bin/node", "--version"]
+# Expose server ports
+EXPOSE 11470 12470
 
-WORKDIR /home/nonroot
-
+# Volume for persistent cache and configuration
 VOLUME ["/home/nonroot/.stremio-server"]
 
-CMD ["/app/stremio-server"]
+# Health check - verify node is running
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD ["/app/bin/node", "-e", "process.exit(0)"]
+
+# Run server.js with Node.js
+ENTRYPOINT ["/app/bin/node", "/app/server.js"]
