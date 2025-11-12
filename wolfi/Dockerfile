@@ -13,9 +13,12 @@ FROM cgr.dev/chainguard/wolfi-base:latest AS builder
 RUN apk add --no-cache wget
 
 # Step 2: Download and install repository signing key
-# Use direct download URL to avoid HTML redirect page
-RUN wget --content-disposition -O /etc/apk/keys/vejeta-wolfi.rsa.pub \
-    'https://sourceforge.net/projects/wolfi/files/keys/vejeta-wolfi.rsa.pub/download?use_mirror=autoselect'
+# Use downloads.sourceforge.net direct URL (no redirects)
+RUN wget -O /etc/apk/keys/vejeta-wolfi.rsa.pub \
+    'https://downloads.sourceforge.net/project/wolfi/keys/vejeta-wolfi.rsa.pub' && \
+    echo "Verifying key download:" && \
+    file /etc/apk/keys/vejeta-wolfi.rsa.pub && \
+    head -1 /etc/apk/keys/vejeta-wolfi.rsa.pub
 
 # Step 3: Add repository URL (APK will auto-append /x86_64)
 RUN echo "https://downloads.sourceforge.net/project/wolfi" >> /etc/apk/repositories

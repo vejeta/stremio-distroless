@@ -18,9 +18,12 @@ RUN apk update && apk add --no-cache \
 
 # Add custom Wolfi APK repository from SourceForge
 # Step 1: Download and install repository signing key
-# Use direct download URL to avoid HTML redirect page
-RUN wget --content-disposition -O /etc/apk/keys/vejeta-wolfi.rsa.pub \
-    'https://sourceforge.net/projects/wolfi/files/keys/vejeta-wolfi.rsa.pub/download?use_mirror=autoselect'
+# Use downloads.sourceforge.net direct URL (no redirects)
+RUN wget -O /etc/apk/keys/vejeta-wolfi.rsa.pub \
+    'https://downloads.sourceforge.net/project/wolfi/keys/vejeta-wolfi.rsa.pub' && \
+    echo "Verifying key download:" && \
+    file /etc/apk/keys/vejeta-wolfi.rsa.pub && \
+    head -1 /etc/apk/keys/vejeta-wolfi.rsa.pub
 
 # Step 2: Add repository URL (APK will auto-append /x86_64)
 RUN echo "https://downloads.sourceforge.net/project/wolfi" >> /etc/apk/repositories
