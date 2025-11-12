@@ -12,7 +12,7 @@ FROM cgr.dev/chainguard/wolfi-base:latest AS builder
 RUN apk add --no-cache wget
 
 # Add repository URL
-RUN echo "https://downloads.sourceforge.net/project/wolfi/x86_64" >> /etc/apk/repositories
+RUN echo "https://downloads.sourceforge.net/project/wolfi" >> /etc/apk/repositories
 
 # Download repository signing key
 RUN wget -O /etc/apk/keys/vejeta-wolfi.rsa.pub \
