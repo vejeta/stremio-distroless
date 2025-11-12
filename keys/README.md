@@ -28,7 +28,7 @@ This approach follows industry best practices from:
 # Verify key fingerprint (SHA256)
 sha256sum keys/vejeta-wolfi.rsa.pub
 
-# Expected: [TO BE FILLED WHEN KEY IS ADDED]
+# Expected: 3a69e5ba1f59249cf4babaa29941d21ed3be5fae2c810ba34d00b10c4c5bd3b2
 ```
 
 ## Key Rotation

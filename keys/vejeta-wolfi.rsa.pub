@@ -1,11 +1,14 @@
-# PLACEHOLDER: Replace with actual vejeta-wolfi.rsa.pub key
-#
-# To obtain the key:
-# wget -O keys/vejeta-wolfi.rsa.pub \
-#   'https://downloads.sourceforge.net/project/wolfi/keys/vejeta-wolfi.rsa.pub'
-#
-# Then calculate and document the SHA256 fingerprint:
-# sha256sum keys/vejeta-wolfi.rsa.pub
-#
-# This placeholder exists to demonstrate supply chain security best practices.
-# The actual key should be committed after verification.
+-----BEGIN PUBLIC KEY-----
+MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAsNDNy7lTUi4q898T4dgG
+ZJ5cvjgDD/nAPlO3LUPe5wI7P9bNB6OumbEJ8yLdCrTcCRMsrNM0BdeSxLdNSLki
+30FDKZIAzvepsy1S/Cy/MREiaHLQwPWRQowFmLRBJjPsCHDr587lPb6kOTmVJVbF
+nNRxb+ZsBWV+Pxd06ekwaf4QDxT4oX2xE/qPINBPJVl/3/SR/MQrKIuzcl69u3o5
+bK+MRbLg+VSOqy8GCtmpm/LM4+nvVAF9/Hi5/QuooRHVFNOM7QJbJRkvciOk2Ysk
+qOimVjMUtq5r/dgufNmc+9sN/vUnHQYHj65OkWZsMVK0aTCHk4E9jwFYHtSnkz6o
+THQWmVCjvIPdhaGTzUFQ6Di1HtxttHXUKJnig1DNW0itAaWLKv11qyh5hDEVLZ+g
+JkmEBw1BJWiHgCRZxLhIm/S2Rj4n7fjgNDpsn1r8KDUu2ctLPyp2h3OeZ21JotdJ
+H+WlNGmTaj7OLKkUBz5KGuavGP7KzXXbIqheovf6HYBELvCJdoROOvH0jUP5M2EN
+3P1UpU9vPjWvMW/W59EdpP3MblhoSH/woCiyD+6/VzzZJuY7f3ZnKy5GUheM+kEv
+yorVq4JtGbnUaiLutWYY1Cy4PD7ybzYKAmwwuKfsWQ1fdg9JCL4dLi/CZ1ynVIEI
+FGVCw80rmXw/i4IwTAXugLUCAwEAAQ==
+-----END PUBLIC KEY-----

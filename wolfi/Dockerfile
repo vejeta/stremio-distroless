@@ -9,14 +9,14 @@ FROM cgr.dev/chainguard/wolfi-base:latest AS builder
 
 # Add custom Wolfi APK repository from SourceForge
 # This repository contains Stremio and multimedia dependencies
-RUN apk add --no-cache wget
+
+# Supply chain security: Use pre-verified key from repository
+# Eliminates runtime dependency on external key servers
+# Key fingerprint (SHA256): 3a69e5ba1f59249cf4babaa29941d21ed3be5fae2c810ba34d00b10c4c5bd3b2
+COPY keys/vejeta-wolfi.rsa.pub /etc/apk/keys/vejeta-wolfi.rsa.pub
 
 # Add repository URL
 RUN echo "https://downloads.sourceforge.net/project/wolfi" >> /etc/apk/repositories
-
-# Download repository signing key
-RUN wget -O /etc/apk/keys/vejeta-wolfi.rsa.pub \
-    'https://downloads.sourceforge.net/project/wolfi/keys/vejeta-wolfi.rsa.pub'
 
 # Install build dependencies and Stremio with multimedia support
 # Using --no-cache to avoid storing package cache in the image
