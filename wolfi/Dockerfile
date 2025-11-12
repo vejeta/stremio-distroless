@@ -16,7 +16,7 @@ RUN echo "https://downloads.sourceforge.net/project/wolfi" >> /etc/apk/repositor
 
 # Download repository signing key
 RUN wget -O /etc/apk/keys/vejeta-wolfi.rsa.pub \
-    'https://sourceforge.net/projects/wolfi/files/keys/vejeta-wolfi.rsa.pub/download'
+    'https://downloads.sourceforge.net/project/wolfi/keys/vejeta-wolfi.rsa.pub'
 
 # Install build dependencies and Stremio with multimedia support
 # Using --no-cache to avoid storing package cache in the image
