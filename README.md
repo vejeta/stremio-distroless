@@ -479,7 +479,7 @@ docker run -it --rm \
 
 Images are tagged automatically on every push:
 
-- **Branch tags**: `main`, `develop`, `claude-*`
+- **Branch tags**: `main`, `develop`
 - **Git SHA**: `sha-abc1234`
 - **Semantic versions**: `v1.0.0`, `1.0.0`, `1.0` (when tagged)
 - **Latest**: `latest` (only for main branch)
