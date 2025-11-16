@@ -18,16 +18,11 @@ ARG TARGETARCH
 # Key fingerprint (SHA256): 3a69e5ba1f59249cf4babaa29941d21ed3be5fae2c810ba34d00b10c4c5bd3b2
 COPY keys/vejeta-wolfi.rsa.pub /etc/apk/keys/vejeta-wolfi.rsa.pub
 
-# Add repository URL with architecture-specific path
-# Map Docker arch to APK arch: amd64 -> x86_64, arm64 -> aarch64
-RUN set -eux; \
-    case "${TARGETARCH}" in \
-        amd64) APK_ARCH="x86_64" ;; \
-        arm64) APK_ARCH="aarch64" ;; \
-        *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
-    esac; \
-    echo "Building for APK architecture: ${APK_ARCH}"; \
-    echo "https://downloads.sourceforge.net/project/wolfi/${APK_ARCH}" >> /etc/apk/repositories
+# Add repository URL - APK automatically appends /${ARCH} to the URL
+# This will resolve to:
+#   - https://downloads.sourceforge.net/project/wolfi/x86_64/APKINDEX.tar.gz (amd64)
+#   - https://downloads.sourceforge.net/project/wolfi/aarch64/APKINDEX.tar.gz (arm64)
+RUN echo "https://downloads.sourceforge.net/project/wolfi" >> /etc/apk/repositories
 
 # Install build dependencies and Stremio with multimedia support
 # Using --no-cache to avoid storing package cache in the image
