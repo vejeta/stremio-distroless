@@ -84,7 +84,7 @@ jobs:
             prefix=${{ matrix.ecosystem }}-
             suffix=-${{ matrix.variant }}
 
-      - name: Build and push Docker image
+      - name: Build and push multi-arch Docker image
         id: build
         uses: docker/build-push-action@v5
         with:
@@ -96,15 +96,24 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.ecosystem }}-${{ matrix.variant }}
           cache-to: type=gha,mode=max,scope=${{ matrix.ecosystem }}-${{ matrix.variant }}
-          load: true
-          outputs: type=docker,dest=/tmp/${{ matrix.ecosystem }}-${{ matrix.variant }}.tar
 
-      - name: Load image for scanning
+      - name: Build amd64 image for local scanning
+        id: build-amd64
+        uses: docker/build-push-action@v5
+        continue-on-error: true
+        with:
+          context: .
+          file: ${{ matrix.dockerfile_dir }}/${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          load: true
+          tags: local-scan:${{ matrix.ecosystem }}-${{ matrix.variant }}
+          cache-from: type=gha,scope=${{ matrix.ecosystem }}-${{ matrix.variant }}
+
+      - name: Set image tag for scanning
         id: load-image
         continue-on-error: true
         run: |
-          docker load --input /tmp/${{ matrix.ecosystem }}-${{ matrix.variant }}.tar
-          echo "IMAGE_TAG=$(docker images --format '{{.Repository}}:{{.Tag}}' | head -n1)" >> $GITHUB_ENV
+          echo "IMAGE_TAG=local-scan:${{ matrix.ecosystem }}-${{ matrix.variant }}" >> $GITHUB_ENV
 
       # ==================== SBOM Generation ====================
 
