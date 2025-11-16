@@ -7,6 +7,9 @@
 # ============================================================================
 FROM cgr.dev/chainguard/wolfi-base:latest AS builder
 
+# Multi-architecture support
+ARG TARGETARCH
+
 # Add custom Wolfi APK repository from SourceForge
 # This repository contains Stremio and multimedia dependencies
 
@@ -15,8 +18,16 @@ FROM cgr.dev/chainguard/wolfi-base:latest AS builder
 # Key fingerprint (SHA256): 3a69e5ba1f59249cf4babaa29941d21ed3be5fae2c810ba34d00b10c4c5bd3b2
 COPY keys/vejeta-wolfi.rsa.pub /etc/apk/keys/vejeta-wolfi.rsa.pub
 
-# Add repository URL
-RUN echo "https://downloads.sourceforge.net/project/wolfi" >> /etc/apk/repositories
+# Add repository URL with architecture-specific path
+# Map Docker arch to APK arch: amd64 -> x86_64, arm64 -> aarch64
+RUN set -eux; \
+    case "${TARGETARCH}" in \
+        amd64) APK_ARCH="x86_64" ;; \
+        arm64) APK_ARCH="aarch64" ;; \
+        *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
+    esac; \
+    echo "Building for APK architecture: ${APK_ARCH}"; \
+    echo "https://downloads.sourceforge.net/project/wolfi/${APK_ARCH}" >> /etc/apk/repositories
 
 # Install build dependencies and Stremio with multimedia support
 # Using --no-cache to avoid storing package cache in the image

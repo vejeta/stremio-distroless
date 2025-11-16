@@ -26,8 +26,8 @@ This repository demonstrates applying consistent security hardening principles r
 - Multi-runtime support (Docker, Podman, OCI, Incus/LXC)
 
 **Package Sources**:
-- **Wolfi APK**: https://sourceforge.net/projects/wolfi/files/x86_64/ (built via [wolfi-packages](https://github.com/vejeta/wolfi-packages))
-- **Debian DEB**: https://debian.vejeta.com (submitted to Debian Mentors)
+- **Wolfi APK**: https://sourceforge.net/projects/wolfi/ (amd64/aarch64) (built via [wolfi-packages](https://github.com/vejeta/wolfi-packages))
+- **Debian DEB**: https://debian.vejeta.com (amd64/aarch64) (submitted to Debian Mentors)
 
 Feedback and contributions are welcome.
 
@@ -56,6 +56,7 @@ Feedback and contributions are welcome.
 | **CVE Updates** | Nightly automatic | Debian security team |
 | **SBOM** | Built-in | Generated with Syft |
 | **Image Size** | ~50MB | ~80MB |
+| **Architectures** | amd64, aarch64 | amd64, aarch64 |
 | **Package Source** | sourceforge.net/projects/wolfi | debian.vejeta.com |
 
 ### Runtime Support
@@ -358,7 +359,26 @@ docker build -t stremio-wolfi:gui -f wolfi/Dockerfile .
 docker build -t stremio-wolfi:server -f wolfi/Dockerfile.server .
 ```
 
-Packages fetched from: https://sourceforge.net/projects/wolfi/files/x86_64/
+Packages fetched from: https://sourceforge.net/projects/wolfi/ (amd64/aarch64)
+
+### Multi-Architecture Support
+
+All images support both **amd64** (x86_64) and **aarch64** (ARM64) architectures. Docker automatically selects the correct architecture for your platform:
+
+```bash
+# On amd64 system
+docker build -t stremio-wolfi:gui -f wolfi/Dockerfile .  # Builds amd64 image
+
+# On aarch64 system (e.g., Raspberry Pi 4, Apple Silicon)
+docker build -t stremio-wolfi:gui -f wolfi/Dockerfile .  # Builds aarch64 image
+
+# Force specific architecture using buildx
+docker buildx build --platform linux/arm64 -t stremio-wolfi:gui-arm64 -f wolfi/Dockerfile .
+docker buildx build --platform linux/amd64 -t stremio-wolfi:gui-amd64 -f wolfi/Dockerfile .
+
+# Build multi-arch manifest (requires buildx)
+docker buildx build --platform linux/amd64,linux/arm64 -t stremio-wolfi:gui -f wolfi/Dockerfile . --push
+```
 
 ### Debian Variant
 
@@ -433,14 +453,15 @@ This project was inspired by [tsaridas/stremio-docker](https://github.com/tsarid
 | **Security Scanning** | Manual | Automated (Trivy + Grype) |
 | **SBOM** | Manual generation | Automatic (every build) |
 | **Ecosystems** | APK only | APK + DEB |
+| **Architectures** | Multiple (incl. armv7, arm64) | amd64, aarch64 |
 | **Runtimes** | Docker | Docker, Podman, OCI, Incus |
 
 ### When to Use tsaridas/stremio-docker
 
-- Need ARM support **now** (this project: amd64 only currently)
 - Prefer Alpine ecosystem familiarity
 - Want proven, stable solution
 - Need to debug inside container (has shell)
+- Need additional architecture support beyond amd64/aarch64
 
 ### When to Use This Project
 
