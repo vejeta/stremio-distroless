@@ -24,11 +24,19 @@ COPY keys/vejeta-wolfi.rsa.pub /etc/apk/keys/vejeta-wolfi.rsa.pub
 #   - https://downloads.sourceforge.net/project/wolfi/aarch64/APKINDEX.tar.gz (arm64)
 RUN echo "https://downloads.sourceforge.net/project/wolfi" >> /etc/apk/repositories
 
-# Install Stremio with automatic dependency resolution
-# APK will resolve all dependencies (Qt5, multimedia libs, etc.) from Chainguard repo
-# Only the stremio package itself comes from the custom SourceForge repository
+# Install Stremio and all dependencies from SourceForge repository
+# All packages (stremio + Qt5 + multimedia libs) are available for both amd64 and aarch64
 RUN apk update && apk add --no-cache \
     stremio \
+    libvpx \
+    libass \
+    libbluray \
+    qt5-qtbase \
+    qt5-qtdeclarative \
+    qt5-qtquickcontrols \
+    qt5-qtwebchannel \
+    libxcb \
+    vulkan-loader \
     ca-certificates \
     && rm -rf /var/cache/apk/*
 
