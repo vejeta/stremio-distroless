@@ -112,7 +112,7 @@ jobs:
           current=0
 
           while read -r version_id; do
-            ((current++))
+            ((++current))
             echo "[$current/$total_to_delete] Deleting version ID: $version_id"
 
             if error_output=$(gh api \
@@ -121,10 +121,10 @@ jobs:
               -H "X-GitHub-Api-Version: 2022-11-28" \
               "/users/${{ github.repository_owner }}/packages/container/stremio-distroless/versions/$version_id" \
               2>&1); then
-              ((deleted_count++))
+              ((++deleted_count))
               echo "  ✓ Successfully deleted version $version_id"
             else
-              ((failed_count++))
+              ((++failed_count))
               echo "  ✗ Failed to delete version $version_id"
               echo "  Error: $error_output"
             fi
