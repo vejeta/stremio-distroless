@@ -7,7 +7,7 @@ on:
   workflow_dispatch:  # Allow manual trigger
     inputs:
       dry_run:
-        description: 'Dry run (don't actually delete)'
+        description: 'Dry run mode - preview what would be deleted without actually deleting'
         required: false
         type: boolean
         default: false
