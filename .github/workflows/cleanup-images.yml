@@ -45,16 +45,17 @@ jobs:
 
           echo "Total versions found: $(jq '. | length' versions.json)"
 
-          # Extract versions to delete (not semantic version tags or latest)
+          # Extract versions to delete (keep only semantic version tags and latest)
           jq -r '
             .[] |
             select(
-              # Keep versions that have semantic version tags (v1.0.0 format)
+              # Keep versions that have semantic version tags (1.0.0 or v1.0.0 or 1.0 format)
+              # Pattern: wolfi-1.0.0-gui, wolfi-v1.0.0-gui, debian-1.0-server, etc.
               (.metadata.container.tags // [] |
-               any(test("^(wolfi|debian)-(gui|server)-v[0-9]+\\.[0-9]+\\.[0-9]+$")) | not) and
-              # Keep versions with "latest" tag
+               any(test("^(wolfi|debian)-(v?[0-9]+\\.[0-9]+(\\.[0-9]+)?)-(gui|server)$")) | not) and
+              # Keep versions with "latest" tag (wolfi-latest-gui, debian-latest-server)
               (.metadata.container.tags // [] |
-               any(test("latest$")) | not)
+               any(test("^(wolfi|debian)-latest-(gui|server)$")) | not)
             ) |
             .id
           ' versions.json > versions_to_delete.txt
@@ -67,9 +68,9 @@ jobs:
             .[] |
             select(
               (.metadata.container.tags // [] |
-               any(test("^(wolfi|debian)-(gui|server)-v[0-9]+\\.[0-9]+\\.[0-9]+$")) | not) and
+               any(test("^(wolfi|debian)-(v?[0-9]+\\.[0-9]+(\\.[0-9]+)?)-(gui|server)$")) | not) and
               (.metadata.container.tags // [] |
-               any(test("latest$")) | not)
+               any(test("^(wolfi|debian)-latest-(gui|server)$")) | not)
             ) |
             "ID: \(.id) | Tags: \(.metadata.container.tags // [] | join(", "))"
           ' versions.json | head -20
@@ -132,9 +133,9 @@ jobs:
             .[] |
             select(
               (.metadata.container.tags // [] |
-               any(test("^(wolfi|debian)-(gui|server)-v[0-9]+\\.[0-9]+\\.[0-9]+$"))) or
+               any(test("^(wolfi|debian)-(v?[0-9]+\\.[0-9]+(\\.[0-9]+)?)-(gui|server)$"))) or
               (.metadata.container.tags // [] |
-               any(test("latest$")))
+               any(test("^(wolfi|debian)-latest-(gui|server)$")))
             ) |
             "  - \(.metadata.container.tags // [] | join(", "))"
           ' versions.json | sort -u
