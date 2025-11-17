@@ -80,17 +80,15 @@ jobs:
           # Show what will be deleted (for logging)
           echo "Preview of versions to delete:"
           jq -r '
-            [
-              .[] |
-              select(
-                (.metadata.container.tags // [] |
-                 any(test("^(wolfi|debian)-(v?[0-9]+\\.[0-9]+\\.[0-9]+)-(gui|server)$")) | not) and
-                (.metadata.container.tags // [] |
-                 any(test("^(wolfi|debian)-latest-(gui|server)$")) | not)
-              ) |
-              "ID: \(.id) | Tags: \(.metadata.container.tags // [] | join(", "))"
-            ] | limit(20; .[])
-          ' versions.json
+            .[] |
+            select(
+              (.metadata.container.tags // [] |
+               any(test("^(wolfi|debian)-(v?[0-9]+\\.[0-9]+\\.[0-9]+)-(gui|server)$")) | not) and
+              (.metadata.container.tags // [] |
+               any(test("^(wolfi|debian)-latest-(gui|server)$")) | not)
+            ) |
+            "ID: \(.id) | Tags: \(.metadata.container.tags // [] | join(", "))"
+          ' versions.json | head -20
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -111,26 +109,52 @@ jobs:
           failed_count=0
           current=0
 
+          # Function to delete with retry logic
+          delete_version() {
+            local version_id=$1
+            local max_retries=3
+            local retry_count=0
+
+            while [ $retry_count -lt $max_retries ]; do
+              if error_output=$(gh api \
+                --method DELETE \
+                -H "Accept: application/vnd.github+json" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "/users/${{ github.repository_owner }}/packages/container/stremio-distroless/versions/$version_id" \
+                2>&1); then
+                return 0
+              else
+                ((++retry_count))
+                if [ $retry_count -lt $max_retries ]; then
+                  echo "  ⚠ Retry $retry_count/$max_retries after error: $error_output"
+                  sleep 2
+                else
+                  echo "  ✗ Failed after $max_retries attempts: $error_output"
+                  return 1
+                fi
+              fi
+            done
+          }
+
           while read -r version_id; do
             ((++current))
             echo "[$current/$total_to_delete] Deleting version ID: $version_id"
 
-            if error_output=$(gh api \
-              --method DELETE \
-              -H "Accept: application/vnd.github+json" \
-              -H "X-GitHub-Api-Version: 2022-11-28" \
-              "/users/${{ github.repository_owner }}/packages/container/stremio-distroless/versions/$version_id" \
-              2>&1); then
+            if delete_version "$version_id"; then
               ((++deleted_count))
               echo "  ✓ Successfully deleted version $version_id"
             else
               ((++failed_count))
-              echo "  ✗ Failed to delete version $version_id"
-              echo "  Error: $error_output"
             fi
 
-            # Rate limiting: small delay between deletions
-            sleep 0.5
+            # Rate limiting: delay between deletions
+            # Use longer delay every 50 deletions to avoid rate limits
+            if [ $((current % 50)) -eq 0 ]; then
+              echo "  ⏸ Pausing for rate limit (processed $current/$total_to_delete)..."
+              sleep 5
+            else
+              sleep 0.5
+            fi
           done < versions_to_delete.txt
 
           echo ""
