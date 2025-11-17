@@ -1,0 +1,140 @@
+name: Cleanup Old Container Images
+
+on:
+  schedule:
+    # Run weekly on Sundays at 2 AM UTC
+    - cron: '0 2 * * 0'
+  workflow_dispatch:  # Allow manual trigger
+    inputs:
+      dry_run:
+        description: 'Dry run (don't actually delete)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  packages: write
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Delete untagged image versions
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: 'stremio-distroless'
+          package-type: 'container'
+          min-versions-to-keep: 0
+          delete-only-untagged-versions: true
+        continue-on-error: true
+
+      - name: Get all package versions
+        id: get-versions
+        run: |
+          echo "Fetching all package versions..."
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /users/${{ github.repository_owner }}/packages/container/stremio-distroless/versions \
+            --paginate > versions.json
+
+          echo "Total versions found: $(jq '. | length' versions.json)"
+
+          # Extract versions to delete (not semantic version tags or latest)
+          jq -r '
+            .[] |
+            select(
+              # Keep versions that have semantic version tags (v1.0.0 format)
+              (.metadata.container.tags // [] |
+               any(test("^(wolfi|debian)-(gui|server)-v[0-9]+\\.[0-9]+\\.[0-9]+$")) | not) and
+              # Keep versions with "latest" tag
+              (.metadata.container.tags // [] |
+               any(test("latest$")) | not)
+            ) |
+            .id
+          ' versions.json > versions_to_delete.txt
+
+          echo "Versions to delete: $(wc -l < versions_to_delete.txt)"
+
+          # Show what will be deleted (for logging)
+          echo "Preview of versions to delete:"
+          jq -r '
+            .[] |
+            select(
+              (.metadata.container.tags // [] |
+               any(test("^(wolfi|debian)-(gui|server)-v[0-9]+\\.[0-9]+\\.[0-9]+$")) | not) and
+              (.metadata.container.tags // [] |
+               any(test("latest$")) | not)
+            ) |
+            "ID: \(.id) | Tags: \(.metadata.container.tags // [] | join(", "))"
+          ' versions.json | head -20
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Delete non-release versions
+        if: ${{ !inputs.dry_run }}
+        run: |
+          if [ ! -s versions_to_delete.txt ]; then
+            echo "No versions to delete"
+            exit 0
+          fi
+
+          deleted_count=0
+          failed_count=0
+
+          while read -r version_id; do
+            echo "Deleting version ID: $version_id"
+
+            if gh api \
+              --method DELETE \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "/users/${{ github.repository_owner }}/packages/container/stremio-distroless/versions/$version_id" \
+              2>/dev/null; then
+              ((deleted_count++))
+              echo "✓ Deleted version $version_id"
+            else
+              ((failed_count++))
+              echo "✗ Failed to delete version $version_id"
+            fi
+
+            # Rate limiting: small delay between deletions
+            sleep 0.5
+          done < versions_to_delete.txt
+
+          echo ""
+          echo "Summary:"
+          echo "  Total versions deleted: $deleted_count"
+          echo "  Failed deletions: $failed_count"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Dry run summary
+        if: ${{ inputs.dry_run }}
+        run: |
+          echo "DRY RUN MODE - No versions were actually deleted"
+          echo ""
+          echo "Would delete $(wc -l < versions_to_delete.txt) versions"
+          echo ""
+          echo "To actually delete these versions, run this workflow without dry_run"
+
+      - name: Cleanup summary
+        run: |
+          echo "Cleanup job completed"
+          echo ""
+          echo "Kept versions (semantic releases and latest tags):"
+          jq -r '
+            .[] |
+            select(
+              (.metadata.container.tags // [] |
+               any(test("^(wolfi|debian)-(gui|server)-v[0-9]+\\.[0-9]+\\.[0-9]+$"))) or
+              (.metadata.container.tags // [] |
+               any(test("latest$")))
+            ) |
+            "  - \(.metadata.container.tags // [] | join(", "))"
+          ' versions.json | sort -u
