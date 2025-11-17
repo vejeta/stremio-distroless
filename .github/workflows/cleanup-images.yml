@@ -77,7 +77,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Delete non-release versions
-        if: ${{ !inputs.dry_run }}
+        if: ${{ github.event_name == 'schedule' || github.event.inputs.dry_run != 'true' }}
         run: |
           if [ ! -s versions_to_delete.txt ]; then
             echo "No versions to delete"
@@ -115,7 +115,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Dry run summary
-        if: ${{ inputs.dry_run }}
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true' }}
         run: |
           echo "DRY RUN MODE - No versions were actually deleted"
           echo ""
