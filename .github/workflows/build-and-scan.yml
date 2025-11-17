@@ -152,7 +152,7 @@ jobs:
           version: 'v0.67.2'
 
       - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: success() || (failure() && steps.trivy.outcome == 'success')
         with:
           sarif_file: 'trivy-results-${{ matrix.ecosystem }}-${{ matrix.variant }}.sarif'
@@ -190,7 +190,7 @@ jobs:
           output-format: sarif
 
       - name: Upload Grype results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: success() || (failure() && steps.grype.outcome == 'success')
         with:
           sarif_file: ${{ steps.grype.outputs.sarif }}
