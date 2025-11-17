@@ -70,11 +70,15 @@ Feedback and contributions are welcome.
 
 ## Quick Start
 
-### Option 1: Docker (Wolfi variant)
+### Option 1: Use Pre-built Images (Recommended)
+
+Pull and run multi-architecture images directly from GitHub Container Registry. Docker automatically selects the correct architecture (amd64 or aarch64).
+
+#### Wolfi GUI (Desktop Application)
 
 ```bash
-# Build locally
-docker build -t stremio-secure:wolfi -f wolfi/Dockerfile .
+# Pull the image (amd64 or aarch64 automatically selected)
+docker pull ghcr.io/vejeta/stremio-distroless:wolfi-gui-latest
 
 # Run with security hardening
 docker run --rm -it \
@@ -86,26 +90,92 @@ docker run --rm -it \
   -e DISPLAY=$DISPLAY \
   -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
   -v stremio-data:/home/nonroot/.stremio-server:rw \
-  stremio-secure:wolfi
+  ghcr.io/vejeta/stremio-distroless:wolfi-gui-latest
 ```
 
-### Option 2: Podman (Debian variant, rootless)
+#### Wolfi Server (Headless Streaming)
 
 ```bash
-# Build
-podman build -t stremio-secure:debian -f debian/Dockerfile .
+# Pull the server image
+docker pull ghcr.io/vejeta/stremio-distroless:wolfi-server-latest
 
-# Run rootless
+# Run headless server
+docker run --rm -d \
+  --name stremio-server \
+  --cap-drop=ALL \
+  --read-only \
+  -p 11470:11470 -p 12470:12470 \
+  -v stremio-server-cache:/home/nonroot/.stremio-server:rw \
+  ghcr.io/vejeta/stremio-distroless:wolfi-server-latest
+```
+
+#### Debian GUI (Desktop Application)
+
+```bash
+# Pull Debian variant
+docker pull ghcr.io/vejeta/stremio-distroless:debian-gui-latest
+
+# Run with security hardening
+docker run --rm -it \
+  --cap-drop=ALL \
+  --read-only \
+  --tmpfs /tmp:rw,noexec,nosuid,size=1g \
+  --device /dev/dri:/dev/dri:rw \
+  --group-add=$(stat -c '%g' /dev/dri/card0) \
+  -e DISPLAY=$DISPLAY \
+  -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
+  -v stremio-data:/home/nonroot/.stremio-server:rw \
+  ghcr.io/vejeta/stremio-distroless:debian-gui-latest
+```
+
+#### Debian Server (Headless Streaming)
+
+```bash
+# Pull Debian server variant
+docker pull ghcr.io/vejeta/stremio-distroless:debian-server-latest
+
+# Run headless server
+docker run --rm -d \
+  --name stremio-server \
+  --cap-drop=ALL \
+  --read-only \
+  -p 11470:11470 -p 12470:12470 \
+  -v stremio-server-cache:/home/nonroot/.stremio-server:rw \
+  ghcr.io/vejeta/stremio-distroless:debian-server-latest
+```
+
+### Option 2: Build Locally
+
+```bash
+# Build Wolfi GUI
+docker build -t stremio-secure:wolfi-gui -f wolfi/Dockerfile .
+
+# Build Wolfi Server
+docker build -t stremio-secure:wolfi-server -f wolfi/Dockerfile.server .
+
+# Build Debian GUI
+docker build -t stremio-secure:debian-gui -f debian/Dockerfile .
+
+# Build Debian Server
+docker build -t stremio-secure:debian-server -f debian/Dockerfile.server .
+```
+
+### Option 3: Podman (Rootless, Recommended for Security)
+
+```bash
+# Pull and run with Podman (daemonless, rootless)
+podman pull ghcr.io/vejeta/stremio-distroless:wolfi-gui-latest
+
 podman run --rm -it \
   --cap-drop=ALL \
   --read-only \
   --device /dev/dri \
   -e DISPLAY=$DISPLAY \
   -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
-  stremio-secure:debian
+  ghcr.io/vejeta/stremio-distroless:wolfi-gui-latest
 ```
 
-### Option 3: Use Secure Launcher Scripts
+### Option 4: Use Secure Launcher Scripts
 
 ```bash
 # Copy shared launcher
