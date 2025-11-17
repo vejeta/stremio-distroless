@@ -5,6 +5,12 @@
 # Stage 1: Builder - Debian trixie (testing/stable) with build tools
 FROM debian:trixie-slim AS builder
 
+# Multi-architecture support
+ARG TARGETARCH
+# Map Docker arch to Debian multiarch triplet
+# amd64 -> x86_64-linux-gnu, arm64 -> aarch64-linux-gnu
+RUN echo "Building for architecture: ${TARGETARCH}"
+
 # Install dependencies and Stremio from custom repository
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -29,18 +35,26 @@ RUN mkdir -p /app/bin /app/lib /app/share
 # Copy Stremio binary and required libraries
 # stremio-wrapper is a bash script that calls /usr/libexec/stremio/stremio
 # We need the actual binary, not the wrapper script (distroless has no bash)
-RUN cp -a /usr/libexec/stremio/stremio /app/bin/ && \
+RUN set -eux; \
+    # Determine Debian multiarch triplet based on target architecture
+    case "${TARGETARCH}" in \
+        amd64) DEB_ARCH="x86_64-linux-gnu" ;; \
+        arm64) DEB_ARCH="aarch64-linux-gnu" ;; \
+        *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
+    esac; \
+    echo "Using Debian architecture: ${DEB_ARCH}"; \
+    cp -a /usr/libexec/stremio/stremio /app/bin/ && \
     # Copy application-specific shared libraries (exclude base system libs)
     # Distroless already provides libc, libm, libpthread, libdl, etc.
     # No need to copy base system libs - builder and runtime both use same glibc version
     ldd /app/bin/stremio | grep "=>" | awk '{print $3}' | \
     grep -v -E '(libc\.so|libm\.so|libpthread\.so|libdl\.so|librt\.so|libresolv\.so|ld-linux.*)' | \
     xargs -I {} cp -v {} /app/lib/ || true && \
-    # Copy Qt plugins
-    cp -a /usr/lib/x86_64-linux-gnu/qt5 /app/lib/ || true && \
-    # Copy Mesa drivers
+    # Copy Qt plugins (using architecture-specific path)
+    cp -a /usr/lib/${DEB_ARCH}/qt5 /app/lib/ || true && \
+    # Copy Mesa drivers (using architecture-specific path)
     mkdir -p /app/lib/dri && \
-    cp -a /usr/lib/x86_64-linux-gnu/dri/*.so /app/lib/dri/ || true
+    cp -a /usr/lib/${DEB_ARCH}/dri/*.so /app/lib/dri/ || true
 
 # Stage 2: Runtime - Google Distroless with glibc (Debian 13/trixie)
 FROM gcr.io/distroless/base-debian13:nonroot
@@ -59,8 +73,8 @@ USER 65532:65532
 # Copy application from builder
 COPY --from=builder --chown=65532:65532 /app /app
 
-# Set library path for runtime linking
-ENV LD_LIBRARY_PATH=/app/lib:/app/lib/x86_64-linux-gnu
+# Set library path for runtime linking (multi-arch compatible)
+ENV LD_LIBRARY_PATH=/app/lib
 ENV QT_PLUGIN_PATH=/app/lib/qt5/plugins
 ENV LIBVA_DRIVERS_PATH=/app/lib/dri
 ENV VDPAU_DRIVER_PATH=/app/lib/vdpau

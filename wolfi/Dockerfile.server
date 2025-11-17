@@ -7,6 +7,9 @@
 # ============================================================================
 FROM cgr.dev/chainguard/wolfi-base:latest AS builder
 
+# Multi-architecture support
+ARG TARGETARCH
+
 # Install base dependencies from Chainguard repository
 RUN apk update && apk add --no-cache \
     nodejs \
@@ -21,6 +24,10 @@ RUN apk update && apk add --no-cache \
 COPY keys/vejeta-wolfi.rsa.pub /etc/apk/keys/vejeta-wolfi.rsa.pub
 
 # Add custom Wolfi APK repository from SourceForge
+# APK automatically appends /${ARCH} to the URL
+# This will resolve to:
+#   - https://downloads.sourceforge.net/project/wolfi/x86_64/APKINDEX.tar.gz (amd64)
+#   - https://downloads.sourceforge.net/project/wolfi/aarch64/APKINDEX.tar.gz (arm64)
 RUN echo "https://downloads.sourceforge.net/project/wolfi" >> /etc/apk/repositories
 
 # Install stremio-server from custom repository

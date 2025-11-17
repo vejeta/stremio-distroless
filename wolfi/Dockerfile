@@ -7,6 +7,9 @@
 # ============================================================================
 FROM cgr.dev/chainguard/wolfi-base:latest AS builder
 
+# Multi-architecture support
+ARG TARGETARCH
+
 # Add custom Wolfi APK repository from SourceForge
 # This repository contains Stremio and multimedia dependencies
 
@@ -15,11 +18,14 @@ FROM cgr.dev/chainguard/wolfi-base:latest AS builder
 # Key fingerprint (SHA256): 3a69e5ba1f59249cf4babaa29941d21ed3be5fae2c810ba34d00b10c4c5bd3b2
 COPY keys/vejeta-wolfi.rsa.pub /etc/apk/keys/vejeta-wolfi.rsa.pub
 
-# Add repository URL
+# Add repository URL - APK automatically appends /${ARCH} to the URL
+# This will resolve to:
+#   - https://downloads.sourceforge.net/project/wolfi/x86_64/APKINDEX.tar.gz (amd64)
+#   - https://downloads.sourceforge.net/project/wolfi/aarch64/APKINDEX.tar.gz (arm64)
 RUN echo "https://downloads.sourceforge.net/project/wolfi" >> /etc/apk/repositories
 
-# Install build dependencies and Stremio with multimedia support
-# Using --no-cache to avoid storing package cache in the image
+# Install Stremio and all dependencies from SourceForge repository
+# All packages (stremio + Qt5 + multimedia libs) are available for both amd64 and aarch64
 RUN apk update && apk add --no-cache \
     stremio \
     libvpx \

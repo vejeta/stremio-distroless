@@ -6,6 +6,10 @@
 # Use bookworm to match nodejs20-debian12 runtime glibc version
 FROM debian:bookworm-slim AS builder
 
+# Multi-architecture support
+ARG TARGETARCH
+RUN echo "Building for architecture: ${TARGETARCH}"
+
 # Install Stremio streaming server from custom repository
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
