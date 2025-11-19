@@ -60,7 +60,12 @@ RUN apt-get update && \
         libxcb-icccm4 \
         libxcb-image0 \
         libxcb-keysyms1 \
-        libxcb-render-util0 && \
+        libxcb-render-util0 \
+        libx11-xcb1 \
+        libxcb-sync1 \
+        libxcb-xkb1 \
+        libxcb-xinput0 \
+        libxcb-util1 && \
     # Note: Explicitly installing all runtime dependencies ensures distroless copy works
     # Clean up to reduce layer size
     apt-get clean && \
@@ -137,17 +142,22 @@ RUN set -eux; \
     cp -av /usr/lib/${DEB_ARCH}/libdrm.so.2 /app/lib/ 2>/dev/null || true && \
     # Copy libxcb extension libraries (CRITICAL for GLX)
     echo "Copying libxcb GLX extension libraries..." && \
-    cp -v /lib/${DEB_ARCH}/libxcb-glx.so.* /app/lib/ 2>/dev/null || true && \
-    cp -v /lib/${DEB_ARCH}/libxcb-render.so.* /app/lib/ 2>/dev/null || true && \
-    cp -v /lib/${DEB_ARCH}/libxcb-shape.so.* /app/lib/ 2>/dev/null || true && \
-    cp -v /lib/${DEB_ARCH}/libxcb-xinerama.so.* /app/lib/ 2>/dev/null || true && \
-    cp -v /lib/${DEB_ARCH}/libxcb-randr.so.* /app/lib/ 2>/dev/null || true && \
-    cp -v /lib/${DEB_ARCH}/libxcb-xfixes.so.* /app/lib/ 2>/dev/null || true && \
-    cp -v /lib/${DEB_ARCH}/libxcb-shm.so.* /app/lib/ 2>/dev/null || true && \
-    cp -v /lib/${DEB_ARCH}/libxcb-icccm.so.* /app/lib/ 2>/dev/null || true && \
-    cp -v /lib/${DEB_ARCH}/libxcb-image.so.* /app/lib/ 2>/dev/null || true && \
-    cp -v /lib/${DEB_ARCH}/libxcb-keysyms.so.* /app/lib/ 2>/dev/null || true && \
-    cp -v /lib/${DEB_ARCH}/libxcb-render-util.so.* /app/lib/ 2>/dev/null || true && \
+    cp -v /usr/lib/${DEB_ARCH}/libxcb-glx.so.* /app/lib/ 2>/dev/null || true && \
+    cp -v /usr/lib/${DEB_ARCH}/libxcb-render.so.* /app/lib/ 2>/dev/null || true && \
+    cp -v /usr/lib/${DEB_ARCH}/libxcb-shape.so.* /app/lib/ 2>/dev/null || true && \
+    cp -v /usr/lib/${DEB_ARCH}/libxcb-xinerama.so.* /app/lib/ 2>/dev/null || true && \
+    cp -v /usr/lib/${DEB_ARCH}/libxcb-randr.so.* /app/lib/ 2>/dev/null || true && \
+    cp -v /usr/lib/${DEB_ARCH}/libxcb-xfixes.so.* /app/lib/ 2>/dev/null || true && \
+    cp -v /usr/lib/${DEB_ARCH}/libxcb-shm.so.* /app/lib/ 2>/dev/null || true && \
+    cp -v /usr/lib/${DEB_ARCH}/libxcb-icccm.so.* /app/lib/ 2>/dev/null || true && \
+    cp -v /usr/lib/${DEB_ARCH}/libxcb-image.so.* /app/lib/ 2>/dev/null || true && \
+    cp -v /usr/lib/${DEB_ARCH}/libxcb-keysyms.so.* /app/lib/ 2>/dev/null || true && \
+    cp -v /usr/lib/${DEB_ARCH}/libxcb-render-util.so.* /app/lib/ 2>/dev/null || true && \
+    cp -v /usr/lib/${DEB_ARCH}/libX11-xcb.so.* /app/lib/ 2>/dev/null || true && \
+    cp -v /usr/lib/${DEB_ARCH}/libxcb-sync.so.* /app/lib/ 2>/dev/null || true && \
+    cp -v /usr/lib/${DEB_ARCH}/libxcb-xkb.so.* /app/lib/ 2>/dev/null || true && \
+    cp -v /usr/lib/${DEB_ARCH}/libxcb-xinput.so.* /app/lib/ 2>/dev/null || true && \
+    cp -v /usr/lib/${DEB_ARCH}/libxcb-util.so.* /app/lib/ 2>/dev/null || true && \
     # Copy Qt plugins (using architecture-specific path)
     cp -a /usr/lib/${DEB_ARCH}/qt5 /app/lib/ || true && \
     # Copy Mesa drivers (using architecture-specific path)
