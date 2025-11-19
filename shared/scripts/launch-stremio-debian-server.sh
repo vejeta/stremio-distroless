@@ -1,7 +1,7 @@
 #!/bin/bash
-# Secure Stremio Server Launcher (Headless)
+# Secure Stremio Server Launcher (Headless) - Debian Variant
 # For server-only deployments without GUI
-# GPLv3 License - https://github.com/vejeta/docker-stremio-wolfi
+# GPLv3 License - https://github.com/vejeta/stremio-distroless
 
 set -euo pipefail
 
@@ -21,7 +21,7 @@ DATA_DIR="${STREMIO_DATA_DIR:-${HOME}/.stremio-server}"
 # Create data directory if it doesn't exist
 mkdir -p "${DATA_DIR}"
 
-echo "🔒 Launching Stremio Server (headless) with security hardening..."
+echo "🔒 Launching Stremio Server (headless, Debian variant) with security hardening..."
 echo "   User: ${USER_UID}:${USER_GID}"
 echo "   HTTP Port: ${STREMIO_PORT}"
 echo "   HTTPS Port: ${STREMIO_HTTPS_PORT}"
@@ -60,12 +60,6 @@ docker run -d \
     \
     `# ---- Container Name ----` \
     --name stremio-server \
-    \
-    `# ---- Health Check ----` \
-    --health-cmd="curl -f http://localhost:11470/ || exit 1" \
-    --health-interval=30s \
-    --health-timeout=10s \
-    --health-retries=3 \
     \
     `# ---- Restart Policy ----` \
     --restart=unless-stopped \

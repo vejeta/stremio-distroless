@@ -11,7 +11,7 @@ set -euo pipefail
 
 USER_UID="${UID:-$(id -u)}"
 USER_GID="${GID:-$(id -g)}"
-IMAGE_NAME="${STREMIO_SERVER_IMAGE:-ghcr.io/vejeta/stremio-distroless:debian-0.0.1-server}"
+IMAGE_NAME="${STREMIO_SERVER_IMAGE:-ghcr.io/vejeta/stremio-wolfi:server}"
 
 # Server configuration
 STREMIO_PORT="${STREMIO_PORT:-11470}"

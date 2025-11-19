@@ -3,12 +3,20 @@
 # GPLv3 License - https://github.com/vejeta/stremio-distroless
 
 # ============================================================================
-# Stage 1: Builder - Contains tools needed for setup and configuration
+# Single-stage build: Minimal Wolfi image for production
 # ============================================================================
-FROM cgr.dev/chainguard/wolfi-base:latest AS builder
+FROM cgr.dev/chainguard/wolfi-base:latest
 
 # Multi-architecture support
 ARG TARGETARCH
+
+# Metadata following OCI image spec
+LABEL org.opencontainers.image.title="Stremio Secure Container"
+LABEL org.opencontainers.image.description="Secure Stremio container based on Wolfi Linux with minimal attack surface"
+LABEL org.opencontainers.image.vendor="vejeta"
+LABEL org.opencontainers.image.licenses="GPL-3.0"
+LABEL org.opencontainers.image.source="https://github.com/vejeta/stremio-distroless"
+LABEL org.opencontainers.image.documentation="https://github.com/vejeta/stremio-distroless/blob/main/README.md"
 
 # Add custom Wolfi APK repository from SourceForge
 # This repository contains Stremio and multimedia dependencies
@@ -24,10 +32,9 @@ COPY keys/vejeta-wolfi.rsa.pub /etc/apk/keys/vejeta-wolfi.rsa.pub
 #   - https://downloads.sourceforge.net/project/wolfi/aarch64/APKINDEX.tar.gz (arm64)
 RUN echo "https://downloads.sourceforge.net/project/wolfi" >> /etc/apk/repositories
 
-# Install Stremio and all dependencies from SourceForge repository
-# All packages (stremio + Qt5 + multimedia libs) are available for both amd64 and aarch64
+# Install base dependencies first (from Wolfi and Chainguard repos)
+# These are known to work well together
 RUN apk update && apk add --no-cache \
-    stremio \
     libvpx \
     libass \
     libbluray \
@@ -40,49 +47,51 @@ RUN apk update && apk add --no-cache \
     ca-certificates \
     && rm -rf /var/cache/apk/*
 
-# Create directory structure in builder stage
-# (cannot create directories in distroless runtime)
-RUN mkdir -p /app /home/nonroot/.stremio-server && \
-    chown -R 65532:65532 /app /home/nonroot
+# Install explicit runtime dependencies from stremio.yaml
+# This ensures all required packages are available
+RUN apk add --no-cache \
+    librsvg \
+    mpv-dev \
+    nodejs \
+    qt5-qtwebengine \
+    && rm -rf /var/cache/apk/*
 
-# ============================================================================
-# Stage 2: Runtime - Distroless minimal image for production
-# ============================================================================
-FROM cgr.dev/chainguard/glibc-dynamic:latest
+# Install OpenGL/Mesa dependencies for GUI rendering
+# Required for Qt GLX initialization and hardware acceleration
+RUN apk add --no-cache \
+    mesa \
+    mesa-gl \
+    mesa-gles \
+    mesa-egl \
+    mesa-gbm \
+    mesa-dri-gallium \
+    && rm -rf /var/cache/apk/*
 
-# Metadata following OCI image spec
-LABEL org.opencontainers.image.title="Stremio Secure Container"
-LABEL org.opencontainers.image.description="Secure Stremio container based on Wolfi Linux with minimal attack surface"
-LABEL org.opencontainers.image.vendor="vejeta"
-LABEL org.opencontainers.image.licenses="GPL-3.0"
-LABEL org.opencontainers.image.source="https://github.com/vejeta/stremio-distroless"
-LABEL org.opencontainers.image.documentation="https://github.com/vejeta/stremio-distroless/blob/main/README.md"
+# Install Stremio packages from SourceForge in separate layer
+# This isolates any trigger issues from the custom packages
+RUN apk add --no-cache stremio stremio-server \
+    && rm -rf /var/cache/apk/*
 
-# Copy directory structure and files from builder
-# Distroless images cannot run shell commands, so all setup must be done in builder
-COPY --from=builder --chown=65532:65532 /app /app
-COPY --from=builder --chown=65532:65532 /home/nonroot /home/nonroot
-COPY --from=builder /usr/lib /usr/lib
-COPY --from=builder /usr/share /usr/share
-COPY --from=builder /etc/ssl /etc/ssl
+# Create directory structure and setup nonroot user
+RUN mkdir -p /home/nonroot/.stremio-server && \
+    chown -R 65532:65532 /home/nonroot
 
 # Switch to nonroot user (UID 65532)
-# This user has no shell and minimal permissions
+# This user has minimal permissions
 USER 65532:65532
 
-# Environment variables for security
+# Environment variables for security and Qt
 ENV HOME=/home/nonroot
 ENV USER=nonroot
 ENV DISPLAY=:0
 ENV QT_X11_NO_MITSHM=1
-ENV QT_QUICK_BACKEND=software
 
-# Expose Stremio server port (if needed)
+# Expose Stremio server port
 EXPOSE 11470
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD ["/app/stremio", "--version"]
+    CMD ["/usr/bin/stremio", "--version"]
 
 # Working directory
 WORKDIR /home/nonroot
@@ -91,5 +100,4 @@ WORKDIR /home/nonroot
 VOLUME ["/home/nonroot/.stremio-server"]
 
 # Run Stremio as nonroot user
-# Note: In production, use the secure launcher script instead
-CMD ["/app/stremio"]
+CMD ["/usr/bin/stremio"]

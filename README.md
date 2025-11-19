@@ -80,11 +80,19 @@ Pull and run multi-architecture images directly from GitHub Container Registry. 
 # Pull the image (amd64 or aarch64 automatically selected)
 docker pull ghcr.io/vejeta/stremio-distroless:wolfi-gui-latest
 
-# Run with security hardening
+# Option 1: Use the secure launcher script (recommended)
+./shared/scripts/launch-stremio-gui-secure.sh
+
+# Option 2: Manual docker run with all required tmpfs mounts
 docker run --rm -it \
   --cap-drop=ALL \
   --read-only \
-  --tmpfs /tmp:rw,noexec,nosuid,size=1g \
+  --security-opt=no-new-privileges \
+  --tmpfs /tmp:rw,nosuid,nodev,size=1g \
+  --tmpfs /home/nonroot/.local:rw,nosuid,nodev,uid=65532,gid=65532,size=256m \
+  --tmpfs /home/nonroot/.cache:rw,nosuid,nodev,uid=65532,gid=65532,size=256m \
+  --tmpfs /home/nonroot/.pki:rw,nosuid,nodev,uid=65532,gid=65532,size=16m \
+  --shm-size=512m \
   --device /dev/dri:/dev/dri:rw \
   --group-add=$(stat -c '%g' /dev/dri/card0) \
   -e DISPLAY=$DISPLAY \
@@ -92,6 +100,8 @@ docker run --rm -it \
   -v stremio-data:/home/nonroot/.stremio-server:rw \
   ghcr.io/vejeta/stremio-distroless:wolfi-gui-latest
 ```
+
+**Note**: QtWebEngine (Chromium-based) requires writable directories for cache, local storage, and NSS database. The tmpfs mounts above provide these while maintaining read-only root filesystem security. See [Read-Only Filesystem Requirements](#read-only-filesystem-requirements) for details.
 
 #### Wolfi Server (Headless Streaming)
 
@@ -185,6 +195,109 @@ chmod +x launch-stremio-secure.sh
 # Edit to select variant (wolfi or debian)
 ./launch-stremio-secure.sh
 ```
+
+## Read-Only Filesystem Requirements
+
+### Why Read-Only?
+
+Running containers with read-only root filesystems is a security best practice that:
+- **Prevents runtime modifications**: Attackers cannot modify binaries or add malicious code
+- **Ensures immutability**: Container behavior is predictable and repeatable
+- **Reduces attack surface**: No persistent changes possible to the container filesystem
+- **Complies with security standards**: Meets CIS Docker Benchmark recommendations
+
+### QtWebEngine Cache Requirements
+
+Stremio GUI uses QtWebEngine (Chromium-based), which requires writable directories for:
+
+| Directory | Purpose | Recommended Size | Required |
+|-----------|---------|------------------|----------|
+| `/home/nonroot/.cache` | Browser cache, compiled shaders | 256MB | Yes |
+| `/home/nonroot/.local` | Local storage, databases, IndexedDB | 256MB | Yes |
+| `/home/nonroot/.pki` | NSS certificate database | 16MB | Yes |
+| `/tmp` | Temporary files, XDG runtime | 1GB | Yes |
+| `/dev/shm` | Shared memory for Chromium | 512MB+ | Yes |
+
+**Without these mounts**, you'll see errors like:
+```
+Cannot create directory /home/nonroot/.local/share/Smart Code ltd/Stremio/QtWebEngine/Default
+Error: FILE_ERROR_ACCESS_DENIED
+Failed to create directory: /home/nonroot/.cache/Smart Code ltd/Stremio/QtWebEngine/Default/Cache
+```
+
+### tmpfs vs Persistent Volumes
+
+**tmpfs mounts** (in-memory, temporary):
+- Use for: Cache, temporary data, runtime directories
+- Advantages: Fast, automatically cleaned on container restart, no disk I/O
+- Disadvantages: Data lost on restart, uses RAM
+
+**Persistent volumes**:
+- Use for: User settings, watch history, server configuration
+- Location: `/home/nonroot/.stremio-server`
+- Survives container restarts
+
+### Shared Memory Requirements
+
+Chromium-based applications (like QtWebEngine) use shared memory (`/dev/shm`) for:
+- Inter-process communication (IPC)
+- Canvas rendering
+- Video decoding buffers
+
+**Docker's default `/dev/shm` is only 64MB**, which is insufficient for:
+- HD/4K video streaming
+- Content-heavy web pages
+- Multiple tabs/windows
+
+**Symptoms of insufficient shared memory**:
+```
+Bus error (SIGBUS)
+Segmentation fault
+Browser crashes
+```
+
+**Solution**: Increase with `--shm-size=512m` or higher.
+
+### Security vs Functionality Trade-offs
+
+| Feature | Security Impact | Functionality Impact | Recommendation |
+|---------|----------------|----------------------|----------------|
+| Read-only root | ✅ High security | ⚠️ Requires tmpfs mounts | Use with tmpfs |
+| Writable tmpfs | ⚠️ Reduced security | ✅ Full functionality | Limit sizes |
+| noexec on tmpfs | ✅ Prevents code execution | ❌ Breaks JIT compilation | Don't use on /tmp |
+| nosuid on tmpfs | ✅ Prevents privilege escalation | ✅ No impact | Always use |
+| Large /dev/shm | ⚠️ More memory available | ✅ Better performance | Use 512MB-1GB |
+
+### Using XDG Environment Variables (Alternative)
+
+You can redirect cache locations using XDG Base Directory Spec:
+
+```bash
+docker run --rm -it \
+  -e XDG_CACHE_HOME=/tmp/cache \
+  -e XDG_DATA_HOME=/tmp/data \
+  -e XDG_RUNTIME_DIR=/tmp/runtime \
+  --tmpfs /tmp:rw,nosuid,nodev,uid=65532,gid=65532,size=1g \
+  ...
+```
+
+This consolidates all writable directories into a single `/tmp` tmpfs mount.
+
+### Troubleshooting
+
+**Problem**: `Cannot create directory` errors
+**Solution**: Ensure all tmpfs mounts are present with correct uid/gid (65532:65532)
+
+**Problem**: SIGBUS or bus errors
+**Solution**: Increase `--shm-size` to 512m or 1g
+
+**Problem**: "Read-only file system" errors
+**Solution**: Check if the directory should be in tmpfs or persistent volume
+
+**Problem**: Container runs out of memory
+**Solution**: Reduce tmpfs sizes or increase container memory limits
+
+For more details, see the [launch-stremio-gui-secure.sh](shared/scripts/launch-stremio-gui-secure.sh) script which implements all best practices.
 
 ## Repository Structure
 

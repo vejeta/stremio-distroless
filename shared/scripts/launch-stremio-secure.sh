@@ -52,7 +52,7 @@ fi
 # Container Image Selection
 # ============================================================================
 
-IMAGE_NAME="${STREMIO_IMAGE:-ghcr.io/vejeta/stremio-wolfi:latest}"
+IMAGE_NAME="${STREMIO_IMAGE:-ghcr.io/vejeta/stremio-distroless:debian-0.0.1-gui}"
 
 echo "🔒 Launching Stremio with security hardening..."
 echo "   User: ${USER_UID}:${USER_GID}"
@@ -76,30 +76,31 @@ docker run --rm -it \
     ${AUDIO_GROUPS} \
     \
     `# ---- Writable Mounts (with restrictions) ----` \
-    --tmpfs /tmp:rw,noexec,nosuid,size=1g \
-    --mount type=tmpfs,destination=/home/nonroot/.config,tmpfs-mode=0700 \
+    --tmpfs /tmp:rw,noexec,nosuid,size=2g \
+    --tmpfs /home/nonroot:rw,exec,nosuid,uid=${USER_UID},gid=${USER_GID},size=256m \
     -v "${HOME}/.stremio-server:/home/nonroot/.stremio-server:rw" \
     \
     `# ---- X11 Display with Limited Auth ----` \
     -e DISPLAY="${DISPLAY}" \
-    -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
-    -v "${XAUTH_TMP}:/tmp/.docker.xauth:ro" \
-    -e XAUTHORITY=/tmp/.docker.xauth \
+    -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
+    -v "${XAUTH_TMP}:/tmp/.Xauthority:ro" \
+    -e XAUTHORITY=/tmp/.Xauthority \
+    -e HOME=/home/nonroot \
     \
     `# ---- PulseAudio/PipeWire Socket ----` \
-    -v "/run/user/${USER_UID}/pulse:/run/user/${USER_UID}/pulse:ro" \
-    -e PULSE_SERVER="unix:/run/user/${USER_UID}/pulse/native" \
+    -v "/run/user/${USER_UID}/pulse/native:/tmp/pulse-socket:ro" \
+    -e PULSE_SERVER="unix:/tmp/pulse-socket" \
     \
     `# ---- Device Access (GPU/Audio) ----` \
     --device /dev/dri:/dev/dri:rw \
     --device /dev/snd:/dev/snd:rw \
     \
-    `# ---- Network Configuration ----` \
+    `# ---- IPC and Network Configuration ----` \
+    --ipc=host \
     --network=host \
     \
     `# ---- Qt/Environment Variables ----` \
     -e QT_X11_NO_MITSHM=1 \
-    -e QT_QUICK_BACKEND=software \
     \
     `# ---- Resource Limits ----` \
     --memory="2g" \
