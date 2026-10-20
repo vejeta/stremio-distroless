@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Juan Manuel Méndez Rey <vejeta@gmail.com>
+#
+# docker compose -f images/stremio-server/compose.yaml up -d
+# Then open https://web.stremio.com, Settings -> Streaming server URL: http://<this host>:11470
+services:
+  stremio-server:
+    image: ghcr.io/vejeta/stremio-server:latest
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=512m
+    volumes:
+      # server.js (downloaded on the first start), the cache and the settings
+      - stremio-server:/home/nonroot/.stremio-server
+    ports:
+      - "11470:11470"   # HTTP
+      - "12470:12470"   # HTTPS (local.strem.io)
+    # Behind a proxy (Node.js reads it only with NODE_USE_ENV_PROXY=1):
+    # environment:
+    #   HTTPS_PROXY: http://proxy.example:3128
+    #   NODE_USE_ENV_PROXY: "1"
+
+volumes:
+  stremio-server:

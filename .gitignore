@@ -4,11 +4,12 @@
 *.seed
 *.pid.lock
 
-# OCI Runtime
-oci/rootfs/
-oci/bundle/
-oci/*.tar
-oci/*.tar.gz
+# apko build outputs
+*.tar
+sbom-*.spdx.json
+image-refs.txt
+apko.tgz
+apko_*/
 
 # Temporary files
 *.tmp
