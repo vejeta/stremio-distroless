@@ -1,0 +1,81 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Juan Manuel Méndez Rey <vejeta@gmail.com>
+#
+# Build the apko images in images/, test them, and on main publish them to
+# ghcr.io/vejeta/<image> (amd64 and arm64), signed with cosign (keyless).
+# The weekly run rebuilds them with the current Wolfi packages (security fixes).
+name: Images
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'images/**'
+      - 'keys/**'
+      - '.github/workflows/images.yml'
+  pull_request:
+    paths:
+      - 'images/**'
+      - 'keys/**'
+      - '.github/workflows/images.yml'
+  schedule:
+    - cron: '23 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  APKO_VERSION: v1.4.12
+
+jobs:
+  image:
+    name: ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write  # cosign keyless signing
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [stremio-server]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install apko
+        run: |
+          curl -fsSL -o apko.tgz \
+            "https://github.com/chainguard-dev/apko/releases/download/${APKO_VERSION}/apko_${APKO_VERSION#v}_linux_amd64.tar.gz"
+          tar -xzf apko.tgz
+          sudo install "$(find . -name apko -type f -path '*apko_*' | head -1)" /usr/local/bin/apko
+          apko version | tail -3
+
+      - name: Build (amd64) for the test
+        run: |
+          apko build --arch x86_64 images/${{ matrix.image }}/apko.yaml \
+            ${{ matrix.image }}:test image.tar
+          docker load -i image.tar
+
+      - name: Test
+        run: |
+          ./images/${{ matrix.image }}/test.sh ${{ matrix.image }}:test-amd64
+
+      - name: Publish (amd64, arm64) and sign
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        env:
+          REF: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | apko login ghcr.io -u "${{ github.actor }}" --password-stdin
+          tag=$(cat images/${{ matrix.image }}/VERSION)
+          apko publish images/${{ matrix.image }}/apko.yaml "$REF:$tag" "$REF:latest" \
+            --image-refs image-refs.txt
+          cat image-refs.txt
+          echo "digest=$(head -1 image-refs.txt)" >> "$GITHUB_ENV"
+
+      - uses: sigstore/cosign-installer@v3
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+
+      - name: Sign
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: cosign sign --yes "$digest"
